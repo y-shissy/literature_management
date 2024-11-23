@@ -205,19 +205,25 @@ def upload_db_to_google_drive(DB_FILE,drive):
 
 
 # メタデータをデータベースに格納する関数
-def store_metadata_in_db(DB_FILE, metadata, file_link, uploaded_file, drive):
+def store_metadata_in_db(DB_FILE,metadata,file_link,uploaded_file,drive):
     # セッションを作成
-    DATABASE_URL = f"sqlite:///{DB_FILE}"
-    engine = create_engine(DATABASE_URL)
-    SessionLocal = sessionmaker(bind=engine)
+    DATABASE_URL=f"sqlite:///{DB_FILE}"
+    engine=create_engine(DATABASE_URL)
+    SessionLocal=sessionmaker(bind=engine)
     session = SessionLocal()
-
-    # カテゴリ，キーワード読み込み
-    categories = st.session_state["categories"]
-    keywords = st.session_state["keywords"]
-
+    #カテゴリ，キーワード読み込み
+    categories=st.session_state["categories"]
+    keywords=st.session_state["keywords"]
+    
     try:
-        # メタデータ入力フォーム
+        # DOIがすでに存在するか確認
+        existing_record = session.query(Metadata).filter_by(doi=metadata['doi']).first()
+        
+        if existing_record:
+            st.warning("This DOI is already in the database.")
+            return
+
+        # カラムの幅を指定
         col1, col2 = st.columns([3, 1])
 
         with col1:
@@ -242,7 +248,6 @@ def store_metadata_in_db(DB_FILE, metadata, file_link, uploaded_file, drive):
 
                 # 選択したキーワードをカンマ区切りの文字列に変換
                 selected_keywords_str = ",".join(selected_keywords)
-
                 # 新しいメタデータレコードを作成
                 new_record = Metadata(
                     doi=metadata['doi'],
@@ -268,7 +273,10 @@ def store_metadata_in_db(DB_FILE, metadata, file_link, uploaded_file, drive):
                 st.success("New record added to the database.")
 
                 # データベースをGoogle Driveにアップロード
-                upload_db_to_google_drive(DB_FILE, drive)
+                upload_db_to_google_drive(DB_FILE,drive)
+
+                return  # 成功した場合、処理をここで終了
+
 
     except Exception as e:
         st.warning(f"An error occurred: {e}")
@@ -531,39 +539,29 @@ def translate_and_summarize(text):
 
     return summary, keyword_res,category_res
 
-# ファイルの重複確認
-def file_exists_on_drive(drive, file_name):
-    # ゴミ箱内のファイルを除外
-    query = f"title = '{file_name}' and trashed = false"
-    file_list = drive.ListFile({'q': query}).GetList()
-    return len(file_list) > 0
 
+
+
+# Google Drive へのアップロード関数
 def upload_to_google_drive(drive, uploaded_file):
-    """
-    Google Driveにファイルをアップロードします。
-    既に存在する場合は、リンクを返します。
-    """
     try:
-        # ファイルが既に存在するか確認
-        if file_exists_on_drive(drive, uploaded_file.name):
-            st.warning(f"ファイル {uploaded_file.name} はすでに Google Drive に存在します。")
-            file_list = drive.ListFile({'q': f"title = '{uploaded_file.name}'"}).GetList()
-            if file_list:
-                file_id = file_list[0]['id']
-                file_link = f"https://drive.google.com/uc?id={file_id}"
-                return None, file_link  # アップロードをスキップしてリンクを返す
-
-        # 一時ディレクトリを作成してファイルを保存
+        # 一時ディレクトリを作成し、ファイルを保存
         with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as temp_file:
-            temp_file.write(uploaded_file.read())
-            temp_file_path = temp_file.name
+            # アップロードされたファイルの内容をバイナリモードで読み書き
+            temp_file.write(uploaded_file.read())  # uploaded_fileがBytesIOかストリームであることを想定
+            temp_file_path = temp_file.name  # 一時ファイルのパスを取得
 
-        # Google Drive にファイルをアップロード
-        gfile = drive.CreateFile({"title": uploaded_file.name})
+        # Google Drive にアップロードするファイルメタデータを設定
+        gfile = drive.CreateFile({"title": uploaded_file.name})  # uploaded_file.name を使用
+
+        # 一時ファイルを Google Drive にアップロード
         gfile.SetContentFile(temp_file_path)
-        gfile.Upload()
 
+        # アップロードのトライ
+        gfile.Upload()
         st.success(f"{uploaded_file.name} をGoogle Driveにアップロードしました。")
+
+        # アップロードしたファイルのリンクを返す
         return temp_file_path, f"https://drive.google.com/uc?id={gfile['id']}"
 
     except Exception as e:

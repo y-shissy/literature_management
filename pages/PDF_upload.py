@@ -29,7 +29,7 @@ from pdf2image import convert_from_path
 
 # 関数読込
 
-from function import store_metadata_in_db, search_doi_from_filename, display_metadata,process_pdf,upload_to_google_drive,file_exists_on_drive
+from function import store_metadata_in_db, search_doi_from_filename, display_metadata,process_pdf,upload_to_google_drive
 
 # ページ設定
 st.set_page_config(
@@ -40,82 +40,67 @@ st.set_page_config(
 #Google drive
 drive=st.session_state['drive']
 
+# メイン関数
 def main():
+        
     st.markdown("### PDFアップロード")
     DB_FILE = "literature_database.db"
-    engine = create_engine(f"sqlite:///{DB_FILE}")
+    conn = sqlite3.connect(DB_FILE)
 
-    option = st.radio("操作を選択してください", ('DOI自動判別', 'DOI手動入力'))
-    def process_doi_input(doi_input, uploaded_file):
-        """
-        DOI 処理共通ロジックを関数化
-        """
-        SessionLocal = sessionmaker(bind=engine)
-        session = SessionLocal()
-        try:
-            # データベースに DOI が存在するか確認
-            existing_record = session.query(Metadata).filter_by(doi=doi_input).first()
-            if existing_record:
-                st.warning("This DOI is already in the database.")
-                return
-
-            # Google Drive にファイルが既に存在するか確認
-            if file_exists_on_drive(drive, uploaded_file.name):
-                st.warning(f"ファイル {uploaded_file.name} はすでに Google Drive に存在します。")
-                file_list = drive.ListFile({'q': f"title = '{uploaded_file.name}'"}).GetList()
-                if file_list:
-                    file_id = file_list[0]['id']
-                    file_link = f"https://drive.google.com/uc?id={file_id}"
-                else:
-                    st.error("Failed to retrieve file link from Google Drive.")
-                    return
-            else:
-                # Google Drive のファイルをアップロード
-                temp_file_path, file_link = upload_to_google_drive(drive, uploaded_file)
-                if not file_link:  # アップロードが何らかの理由で失敗した場合
-                    return
-
-            # メタデータ取得
-            metadata = display_metadata(doi_input)
-            if not metadata:
-                st.error("Metadata could not be retrieved.")
-                return
-
-            # メタデータをデータベースに格納
-            store_metadata_in_db(DB_FILE, metadata, file_link, uploaded_file, drive)
-
-        except Exception as e:
-            st.error(f"An error occurred while processing DOI: {e}")
-        finally:
-            session.close()
-            
+    option = st.radio("操作を選択してください", ('DOI自動判別','DOI手動入力'))
     if option == 'DOI自動判別':
+        # アップロードされたPDFを処理
         uploaded_file = st.file_uploader("PDFをアップロード", type=["pdf"])
         if uploaded_file:
-            # Google Drive に一時ファイルを保存
+            # Google Drive にPDFをアップロード
             temp_file_path, file_link = upload_to_google_drive(drive, uploaded_file)
 
-            if temp_file_path:
-                # DOI を抽出
-                doi, first_text = process_pdf(temp_file_path)
+            if file_link:  # アップロードに成功した場合
+                # DOI抽出処理
+                doi, first_text = process_pdf(temp_file_path)  # 一時ファイルパスを渡す
+
                 if not doi:
+                    # DOIの抽出に失敗した場合、ファイル名を使って検索
                     search_term = os.path.splitext(uploaded_file.name)[0]
                     doi = search_doi_from_filename(search_term)
+                    st.write(f"Search term: {search_term}") 
+                    st.write(f"Searched DOI: {doi}") 
 
                 if doi:
                     st.success(f"DOI found: {doi}")
-                    process_doi_input(doi, uploaded_file)
+                    # メタデータ表示
+                    metadata = display_metadata(doi)
+                    # データベースへの格納処理
+                    store_metadata_in_db(DB_FILE, metadata, file_link, uploaded_file, drive)
+
                 else:
                     st.error("DOI could not be found.")
-            else:
-                st.error("File upload failed. Please try again.")
+                    return  # 最後に処理を終了させる
+
 
     elif option == 'DOI手動入力':
         doi_input = st.text_input("DOIを入力してください")
-        uploaded_file = st.file_uploader("PDFをアップロード", type=["pdf"])
-        if doi_input and uploaded_file:
-            st.success(f"DOI entered: {doi_input}")
-            process_doi_input(doi_input, uploaded_file)
+        if doi_input:
+            metadata=display_metadata(doi_input)
+
+            if metadata:
+                st.success(f"DOI found: {doi_input}")
+
+
+                # アップロードされたPDFを処理
+                uploaded_file = st.file_uploader("PDFをアップロード", type=["pdf"])
+                if uploaded_file:
+                    # Google Drive にPDFをアップロード
+                    temp_file_path, file_link = upload_to_google_drive(drive, uploaded_file)
+
+                    if file_link:  # アップロードに成功した場合
+
+                        #データベースへの格納処理
+                        store_metadata_in_db(DB_FILE, metadata, file_link, uploaded_file, drive)
+
+                    else:
+                        st.error("DOI could not be found.")
+                        return  # 最後に処理を終了させる
 
 
 
