@@ -1,11 +1,10 @@
 import streamlit as st
 from pydrive.auth import GoogleAuth
 from pydrive.drive import GoogleDrive
-from git import Repo, GitCommandError
+from git import Repo
 import sqlite3
 import os
 import tempfile
-import json
 
 # SQLiteデータベース名
 DB_FILE = "data.db"
@@ -52,18 +51,24 @@ def fetch_db_from_github():
         os.rename(db_path, DB_FILE)
 
 # SQLiteデータベースをGitHubリポジトリにプッシュ
-def push_db_to_github():
+def push_db_to_github(user_name, user_email):
     repo_url = f"https://{st.secrets.github.token}@github.com/{st.secrets.github.repo}.git"
     local_dir = "temp_repo"
     if not os.path.exists(local_dir):
-        Repo.clone_from(repo_url, local_dir)
-    repo = Repo(local_dir)
+        repo = Repo.clone_from(repo_url, local_dir)
+    else:
+        repo = Repo(local_dir)
+
+    # ユーザ名とメールアドレスを設定
+    repo.config_writer().set_value("user", "name", user_name).release()
+    repo.config_writer().set_value("user", "email", user_email).release()
+
     db_path = os.path.join(local_dir, DB_FILE)
     os.rename(DB_FILE, db_path)
     repo.index.add([DB_FILE])
     repo.index.commit("Update database")  # 自己署名のコミット
     repo.remote().push()
-    
+
 # Streamlitアプリの構成
 st.title("PDF管理＆SQLiteデータベース管理アプリ")
 
@@ -84,6 +89,10 @@ try:
 except Exception as e:
     st.error(f"Google Drive認証に失敗しました: {e}")
     st.stop()
+
+# ユーザに名前とメールアドレスを入力させる
+user_name = st.text_input("GitHubへのコミット用の名前を入力してください")
+user_email = st.text_input("GitHubへのコミット用のメールアドレスを入力してください")
 
 # アップロードされたPDFを処理
 uploaded_file = st.file_uploader("PDFをアップロード", type=["pdf"])
@@ -107,7 +116,7 @@ if uploaded_file:
 
     # データベースをGitHubにプッシュ
     try:
-        push_db_to_github()
+        push_db_to_github(user_name, user_email)
         st.success("PDFをアップロードし、データベースを更新しました！")
         st.write(f"リンク: [ここをクリック]({file_link})")
     except Exception as e:
