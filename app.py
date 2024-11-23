@@ -7,6 +7,8 @@ import tempfile
 import shutil
 
 DB_FILE = "data.db"
+# Google Drive子フォルダのIDを設定
+FOLDER_ID = "literature_management"  # ここに子フォルダのIDを設定
 
 # Google Drive 認証設定
 def google_drive_auth(creds_file_path):
@@ -38,7 +40,7 @@ def upload_to_google_drive(drive, file):
     with open(temp_file_path, "wb") as temp_file:
         temp_file.write(file.read())
 
-    gfile = drive.CreateFile({"title": file.name})
+    gfile = drive.CreateFile({"title": file.name, "parents": [{"id": FOLDER_ID}]})  # 子フォルダIDを追加
     gfile.SetContentFile(temp_file_path)
     gfile.Upload()
 
@@ -47,7 +49,7 @@ def upload_to_google_drive(drive, file):
 
 # Google DriveからSQLiteデータベースをダウンロード
 def download_db_from_google_drive(drive):
-    file_list = drive.ListFile({'q': f"title='{DB_FILE}' and trashed=false"}).GetList()
+    file_list = drive.ListFile({'q': f"'{FOLDER_ID}' in parents and title='{DB_FILE}' and trashed=false"}).GetList()  # フォルダ内を検索
     if file_list:
         gfile = file_list[0]  # 最初のファイルを取得
         gfile.GetContentFile(DB_FILE)  # ローカルにデータベースを保存
@@ -60,12 +62,12 @@ def download_db_from_google_drive(drive):
 # Google DriveにSQLiteデータベースをアップロード
 def upload_db_to_google_drive(drive):
     # Google Drive上のファイルを検索
-    file_list = drive.ListFile({'q': f"title='{DB_FILE}' and trashed=false"}).GetList()
+    file_list = drive.ListFile({'q': f"'{FOLDER_ID}' in parents and title='{DB_FILE}' and trashed=false"}).GetList()
     if file_list:
         gfile = file_list[0]  # 最初のファイルを取得
     else:
         # ファイルが存在しない場合は新規作成
-        gfile = drive.CreateFile({"title": DB_FILE})
+        gfile = drive.CreateFile({"title": DB_FILE, "parents": [{"id": FOLDER_ID}]})  # 子フォルダIDを追加
 
     temp_db_path = f"/tmp/{DB_FILE}"
     shutil.move(DB_FILE, temp_db_path)  # 一時ファイルに移動
