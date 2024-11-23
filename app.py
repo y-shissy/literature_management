@@ -4,6 +4,7 @@ from pydrive.drive import GoogleDrive
 import sqlite3
 import os
 import tempfile
+import shutil 
 
 # SQLiteデータベース名
 DB_FILE = "data.db"
@@ -36,7 +37,9 @@ def upload_to_google_drive(drive, file):
 # Google DriveにSQLiteデータベースをアップロード
 def upload_db_to_google_drive(drive):
     temp_db_path = f"/tmp/{DB_FILE}"
-    os.rename(DB_FILE, temp_db_path)  # 一時ファイルに移動
+
+    # shutil.moveを使ってファイルを移動
+    shutil.move(DB_FILE, temp_db_path)  # 一時ファイルに移動
 
     gfile = drive.CreateFile({"title": DB_FILE})
     gfile.SetContentFile(temp_db_path)
