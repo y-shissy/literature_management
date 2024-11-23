@@ -205,20 +205,21 @@ def upload_db_to_google_drive(DB_FILE,drive):
 
 
 # メタデータをデータベースに格納する関数
-def store_metadata_in_db(DB_FILE,metadata,file_link,uploaded_file,drive):
+def store_metadata_in_db(DB_FILE, metadata, file_path, uploaded_file, drive):
     # セッションを作成
-    DATABASE_URL=f"sqlite:///{DB_FILE}"
-    engine=create_engine(DATABASE_URL)
-    SessionLocal=sessionmaker(bind=engine)
+    DATABASE_URL = f"sqlite:///{DB_FILE}"
+    engine = create_engine(DATABASE_URL)
+    SessionLocal = sessionmaker(bind=engine)
     session = SessionLocal()
-    #カテゴリ，キーワード読み込み
-    categories=st.session_state["categories"]
-    keywords=st.session_state["keywords"]
-    
+
+    # カテゴリ，キーワード読み込み
+    categories = st.session_state["categories"]
+    keywords = st.session_state["keywords"]
+
     try:
         # DOIがすでに存在するか確認
         existing_record = session.query(Metadata).filter_by(doi=metadata['doi']).first()
-        
+
         if existing_record:
             st.warning("This DOI is already in the database.")
             return
@@ -248,6 +249,13 @@ def store_metadata_in_db(DB_FILE,metadata,file_link,uploaded_file,drive):
 
                 # 選択したキーワードをカンマ区切りの文字列に変換
                 selected_keywords_str = ",".join(selected_keywords)
+
+                # Google DriveにPDFをアップロード
+                file_link = upload_to_google_drive(drive, file_path, uploaded_file.name)
+                if not file_link:
+                    st.error("Google Driveへのアップロードに失敗しました。")
+                    return
+
                 # 新しいメタデータレコードを作成
                 new_record = Metadata(
                     doi=metadata['doi'],
@@ -273,10 +281,9 @@ def store_metadata_in_db(DB_FILE,metadata,file_link,uploaded_file,drive):
                 st.success("New record added to the database.")
 
                 # データベースをGoogle Driveにアップロード
-                upload_db_to_google_drive(DB_FILE,drive)
+                upload_db_to_google_drive(DB_FILE, drive)
 
                 return  # 成功した場合、処理をここで終了
-
 
     except Exception as e:
         st.warning(f"An error occurred: {e}")
@@ -566,18 +573,18 @@ def upload_to_google_drive(drive, file_path, filename):
         return None
 
 # PDFアップロード処理を共通化
-def handle_pdf_upload(uploaded_file, drive, db_file, auto_doi=False, manual_doi=None):
+def handle_pdf_upload(uploaded_file, auto_doi=False, manual_doi=None):
     try:
         # 一時ファイル作成
-        temp_file_path, temp_file_link = create_temp_file(uploaded_file)
+        temp_file_path, _ = create_temp_file(uploaded_file)
         if not temp_file_path:
             st.error("一時ファイルの作成に失敗しました。")
-            return
+            return None, None
 
         # DOIの取得
         doi = None
         if auto_doi:
-            doi, first_text = process_pdf(temp_file_path)
+            doi, _ = process_pdf(temp_file_path)
             if not doi:
                 search_term = os.path.splitext(uploaded_file.name)[0]
                 doi = search_doi_from_filename(search_term)
@@ -586,30 +593,19 @@ def handle_pdf_upload(uploaded_file, drive, db_file, auto_doi=False, manual_doi=
 
         if not doi:
             st.error("DOIが見つかりませんでした。")
-            return
+            return None, None
 
         # メタデータの取得
         metadata = display_metadata(doi)
         if not metadata:
             st.error("DOIに関連するメタデータが見つかりませんでした。")
-            return
+            return None, None
 
-        # Google DriveにPDFをアップロード
-        file_link = upload_to_google_drive(drive, temp_file_path, uploaded_file.name)
-        if not file_link:
-            st.error("Google Driveへのアップロードに失敗しました。")
-            return
-
-        # データベースへの格納
-        db_success = store_metadata_in_db(db_file, metadata, file_link, uploaded_file, drive)
-        if db_success:
-            st.success("New record added to the database.")
-            st.success("ファイルがGoogle Driveに正常にアップロードされました。")
-        else:
-            st.error("データベースへの格納に失敗しました。")
+        return metadata, temp_file_path
 
     except Exception as e:
         st.error(f"エラーが発生しました: {e}")
+        return None, None
 
 
 # 一時ファイルを作成する関数
