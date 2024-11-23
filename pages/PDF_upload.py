@@ -54,6 +54,7 @@ def main():
         if uploaded_file:
             # Google Drive にPDFをアップロード
             temp_file_path, file_link = upload_to_google_drive(drive, uploaded_file)
+            st.write(temp_file_path)
 
             if file_link:  # アップロードに成功した場合
                 # DOI抽出処理
