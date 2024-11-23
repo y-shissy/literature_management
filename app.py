@@ -140,10 +140,10 @@ def main():
     with tabs[0]:
 
         # Google Driveからデータベースをダウンロード，データが無い場合は初期化
-        download_db_from_google_drive(drive)
+        download_db_from_google_drive(st.session_state['drive'])
         # データベース読み込み
         read_db()
-        
+
         # カテゴリカラムのユニークな値を抽出
         unique_category = st.session_state["df"]["カテゴリ"].unique()
         # journalカラムのユニークな値を抽出
