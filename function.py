@@ -83,7 +83,7 @@ def extract_doi(text):
 # PDFからのテキスト抽出＋DOI抽出の関数（上記の組み合わせ）
 def process_pdf(pdf_path):
     first_text=extract_text_from_pdf(pdf_path)[:2]
-    combined_text=''.join([doc.text for doc in first_text])
+    combined_text = ' '.join([doc.text for doc in first_text]).replace('\n', ' ')  # 改行をスペースに置換
     first_doi = extract_doi(combined_text)
     return first_doi,first_text
 
