@@ -541,41 +541,37 @@ def translate_and_summarize(text):
 
 
 
-
-# Google Drive へのアップロード関数
-def upload_to_google_drive(drive, uploaded_file):
+def upload_to_google_drive(drive, file_path, filename):
     try:
-        # 一時ファイルの作成
-        temp_file_path = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf").name
-
-        # アップロードするファイルのタイトル
-        filename = uploaded_file.name
-
-        # アップロードされたファイルの内容を一時ファイルに書き込む
-        with open(temp_file_path, 'wb') as temp_file:
-            temp_file.write(uploaded_file.read())
-
         # 既存ファイルを検索
         existing_files = drive.ListFile({'q': f"title='{filename}' and trashed=false"}).GetList()
 
         if existing_files:
-            # 既存のファイルが見つかった場合は上書き
             gfile = existing_files[0]  # 最初のファイルを選択
-            gfile.SetContentFile(temp_file_path)  # 一時ファイルを新しい内容で設定
+            gfile.SetContentFile(file_path)  # 一時ファイルを新しい内容で設定
             gfile.Upload()
             st.success(f"既存のファイル '{filename}' をGoogle Driveに上書きしました。")
             file_link = f"https://drive.google.com/uc?id={gfile['id']}"
         else:
-            # 新規ファイル作成
             gfile = drive.CreateFile({"title": filename})
-            gfile.SetContentFile(temp_file_path)
+            gfile.SetContentFile(file_path)
             gfile.Upload()
             st.success(f"{filename} をGoogle Driveにアップロードしました。")
             file_link = f"https://drive.google.com/uc?id={gfile['id']}"
 
-        # アップロードしたファイルのリンクと一時ファイルのパスを返す
-        return temp_file_path,file_link
+        return file_link
 
     except Exception as e:
         st.error(f"アップロード失敗: {e}")
+        return None
+
+# 一時ファイルを作成する関数
+def create_temp_file(uploaded_file):
+    try:
+        temp_file_path = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf").name
+        with open(temp_file_path, 'wb') as temp_file:
+            temp_file.write(uploaded_file.read())
+        return temp_file_path, None
+    except Exception as e:
+        st.error(f"一時ファイル作成エラー: {e}")
         return None, None
