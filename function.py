@@ -539,9 +539,19 @@ def translate_and_summarize(text):
 
     return summary, keyword_res,category_res
 
+#ファイルの重複確認
+def file_exists_on_drive(drive, file_name):
+    file_list = drive.ListFile({'q': f"title = '{file_name}'"}).GetList()
+    return len(file_list) > 0
+
+
 # Google Drive へのアップロード関数
 def upload_to_google_drive(drive, uploaded_file):
     try:
+        if file_exists_on_drive(drive, uploaded_file.name):
+            st.warning(f"ファイル {uploaded_file.name} はすでに Google Drive に存在します。")
+            return None, None
+
         # 一時ディレクトリを作成し、ファイルを保存
         with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as temp_file:
             # アップロードされたファイルの内容をバイナリモードで読み書き
