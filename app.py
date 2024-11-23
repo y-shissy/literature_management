@@ -5,7 +5,6 @@ from git import Repo
 import sqlite3
 import os
 import tempfile
-import json
 
 # SQLiteデータベース名
 DB_FILE = "data.db"
@@ -23,9 +22,19 @@ def google_drive_auth(creds_file_path):
 
 # Google Drive にPDFをアップロード
 def upload_to_google_drive(drive, file):
+    # 一時ファイルに保存
+    temp_file_path = f"/tmp/{file.name}"
+    with open(temp_file_path, "wb") as temp_file:
+        temp_file.write(file.read())
+
+    # Google Driveにアップロード
     gfile = drive.CreateFile({"title": file.name})
-    gfile.SetContentFile(file.name)
+    gfile.SetContentFile(temp_file_path)
     gfile.Upload()
+
+    # アップロード後、一時ファイルを削除
+    os.remove(temp_file_path)
+
     return f"https://drive.google.com/uc?id={gfile['id']}"
 
 # GitHubリポジトリからSQLiteデータベースを取得
@@ -42,16 +51,22 @@ def fetch_db_from_github():
         os.rename(db_path, DB_FILE)
 
 # SQLiteデータベースをGitHubリポジトリにプッシュ
-def push_db_to_github():
+def push_db_to_github(user_name, user_email):
     repo_url = f"https://{st.secrets.github.token}@github.com/{st.secrets.github.repo}.git"
     local_dir = "temp_repo"
     if not os.path.exists(local_dir):
-        Repo.clone_from(repo_url, local_dir)
-    repo = Repo(local_dir)
+        repo = Repo.clone_from(repo_url, local_dir)
+    else:
+        repo = Repo(local_dir)
+
+    # ユーザ名とメールアドレスを設定
+    repo.config_writer().set_value("user", "name", user_name).release()
+    repo.config_writer().set_value("user", "email", user_email).release()
+
     db_path = os.path.join(local_dir, DB_FILE)
     os.rename(DB_FILE, db_path)
-    repo.git.add(DB_FILE)
-    repo.index.commit("Update database")
+    repo.index.add([DB_FILE])
+    repo.index.commit("Update database")  # 自己署名のコミット
     repo.remote().push()
 
 # Streamlitアプリの構成
@@ -75,6 +90,10 @@ except Exception as e:
     st.error(f"Google Drive認証に失敗しました: {e}")
     st.stop()
 
+# ユーザに名前とメールアドレスを入力させる
+user_name = st.text_input("GitHubへのコミット用の名前を入力してください")
+user_email = st.text_input("GitHubへのコミット用のメールアドレスを入力してください")
+
 # アップロードされたPDFを処理
 uploaded_file = st.file_uploader("PDFをアップロード", type=["pdf"])
 if uploaded_file:
@@ -97,7 +116,7 @@ if uploaded_file:
 
     # データベースをGitHubにプッシュ
     try:
-        push_db_to_github()
+        push_db_to_github(user_name, user_email)
         st.success("PDFをアップロードし、データベースを更新しました！")
         st.write(f"リンク: [ここをクリック]({file_link})")
     except Exception as e:
