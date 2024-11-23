@@ -20,7 +20,7 @@ from sqlalchemy.orm import sessionmaker, declarative_base
 from database import get_session, Metadata
 
 from openai import OpenAI
-from llama_index.core import down_loader, VectorStoreIndex, Settings, SimpleDirectoryReader
+from llama_index.core import download_loader, VectorStoreIndex, Settings, SimpleDirectoryReader
 import tiktoken
 import urllib.parse
 
