@@ -16,7 +16,7 @@ def google_drive_auth(creds_file_path):
         gauth.Refresh()
     else:
         gauth.Authorize()
-    return GoogleDrive(gauth)
+    return gauth, GoogleDrive(gauth)
 
 # SQLiteデータベースを初期化または接続
 def initialize_db():
@@ -46,17 +46,6 @@ def upload_to_google_drive(drive, file):
     except Exception as e:
         st.error(f"アップロード失敗: {e}")
         return None
-
-    # アクセス権を変更：自分のみアクセス可能にする
-    try:
-        gfile.InsertPermission({
-            'type': 'user',
-            'role': 'owner',  # 'owner' と設定して自分のみのアクセス権を保持
-            'value': gauth.GetEmail()  # 認証ユーザーのメールアドレスを指定
-        })
-        st.success(f"{file.name} のアクセス権を変更しました。")
-    except Exception as e:
-        st.error(f"権限設定に失敗しました: {e}")
 
     os.remove(temp_file_path)
     return f"https://drive.google.com/uc?id={gfile['id']}"
@@ -92,17 +81,6 @@ def upload_db_to_google_drive(drive):
         st.error(f"データベースアップロードに失敗しました: {e}")
         return None
 
-    # アクセス権を変更：自分のみアクセス可能にする
-    try:
-        gfile.InsertPermission({
-            'type': 'user',
-            'role': 'owner',
-            'value': gauth.GetEmail(),  # 認証ユーザーのメールアドレスを指定
-        })
-        st.success(f"{DB_FILE} のアクセス権を変更しました。")
-    except Exception as e:
-        st.error(f"権限設定に失敗しました: {e}")
-
     os.remove(temp_db_path)  # 一時ファイルを削除
 
     return f"https://drive.google.com/uc?id={gfile['id']}"
@@ -123,7 +101,7 @@ with tempfile.NamedTemporaryFile(delete=False, suffix=".txt") as temp_creds_file
 
 # Google Drive 認証
 try:
-    drive = google_drive_auth(temp_creds_path)
+    gauth, drive = google_drive_auth(temp_creds_path)
 except Exception as e:
     st.error(f"Google Drive認証に失敗しました: {e}")
     st.stop()
