@@ -29,7 +29,7 @@ from pdf2image import convert_from_path
 
 # 関数読込
 
-from function import store_metadata_in_db, search_doi_from_filename, display_metadata,process_pdf,upload_to_google_drive
+from function import store_metadata_in_db, search_doi_from_filename, display_metadata,process_pdf,upload_to_google_drive,file_exists_on_drive
 
 # ページ設定
 st.set_page_config(
@@ -39,13 +39,13 @@ st.set_page_config(
 )
 #Google drive
 drive=st.session_state['drive']
+
 def main():
     st.markdown("### PDFアップロード")
     DB_FILE = "literature_database.db"
     engine = create_engine(f"sqlite:///{DB_FILE}")
 
     option = st.radio("操作を選択してください", ('DOI自動判別', 'DOI手動入力'))
-
     def process_doi_input(doi_input, uploaded_file):
         """
         DOI 処理共通ロジックを関数化
@@ -59,17 +59,20 @@ def main():
                 st.warning("This DOI is already in the database.")
                 return
 
-            # Google Drive に PDF をアップロード
-            temp_file_path, file_link = upload_to_google_drive(drive, uploaded_file)
-            if not file_link:
+            # Google Drive にファイルが既に存在するか確認
+            if file_exists_on_drive(drive, uploaded_file.name):
                 st.warning(f"ファイル {uploaded_file.name} はすでに Google Drive に存在します。")
-                # Google Drive で既存ファイルのリンクを取得
                 file_list = drive.ListFile({'q': f"title = '{uploaded_file.name}'"}).GetList()
                 if file_list:
                     file_id = file_list[0]['id']
                     file_link = f"https://drive.google.com/uc?id={file_id}"
                 else:
                     st.error("Failed to retrieve file link from Google Drive.")
+                    return
+            else:
+                # Google Drive のファイルをアップロード
+                temp_file_path, file_link = upload_to_google_drive(drive, uploaded_file)
+                if not file_link:  # アップロードが何らかの理由で失敗した場合
                     return
 
             # メタデータ取得
@@ -80,11 +83,12 @@ def main():
 
             # メタデータをデータベースに格納
             store_metadata_in_db(DB_FILE, metadata, file_link, uploaded_file, drive)
+
         except Exception as e:
             st.error(f"An error occurred while processing DOI: {e}")
         finally:
             session.close()
-
+            
     if option == 'DOI自動判別':
         uploaded_file = st.file_uploader("PDFをアップロード", type=["pdf"])
         if uploaded_file:

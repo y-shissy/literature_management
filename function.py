@@ -539,19 +539,23 @@ def file_exists_on_drive(drive, file_name):
     return len(file_list) > 0
 
 def upload_to_google_drive(drive, uploaded_file):
+    """
+    Google Driveにファイルをアップロードします。
+    既に存在する場合は、リンクを返します。
+    """
     try:
         # ファイルが既に存在するか確認
         if file_exists_on_drive(drive, uploaded_file.name):
             st.warning(f"ファイル {uploaded_file.name} はすでに Google Drive に存在します。")
-            # ファイル情報を取得してリンクを返す
             file_list = drive.ListFile({'q': f"title = '{uploaded_file.name}'"}).GetList()
-            file_id = file_list[0]['id']
-            file_link = f"https://drive.google.com/uc?id={file_id}"
-            return None, file_link  # ファイルアップロードをスキップしてリンクを返す
+            if file_list:
+                file_id = file_list[0]['id']
+                file_link = f"https://drive.google.com/uc?id={file_id}"
+                return None, file_link  # アップロードをスキップしてリンクを返す
 
         # 一時ディレクトリを作成してファイルを保存
         with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as temp_file:
-            temp_file.write(uploaded_file.read())  # uploaded_fileがBytesIOであると想定
+            temp_file.write(uploaded_file.read())
             temp_file_path = temp_file.name
 
         # Google Drive にファイルをアップロード
@@ -565,4 +569,3 @@ def upload_to_google_drive(drive, uploaded_file):
     except Exception as e:
         st.error(f"アップロード失敗: {e}")
         return None, None
-
