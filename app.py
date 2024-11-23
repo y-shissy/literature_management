@@ -92,9 +92,14 @@ if uploaded_file:
     # SQLiteデータベースに記録
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
-    c.execute("INSERT INTO pdf_data (title, link) VALUES (?, ?)", (uploaded_file.name, file_link))
-    conn.commit()
-    conn.close()
+    try:
+        c.execute("INSERT INTO pdf_data (title, link) VALUES (?, ?)", (uploaded_file.name, file_link))
+        conn.commit()
+        st.success("PDFの情報がデータベースに追加されました！")
+    except Exception as e:
+        st.error(f"データベースへの追加に失敗しました: {e}")
+    finally:
+        conn.close()
 
     # データベースをGoogle Driveにアップロード
     try:
