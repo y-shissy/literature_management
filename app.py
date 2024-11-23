@@ -105,30 +105,6 @@ def download_db_from_google_drive(drive):
         st.error(f"{DB_FILE} がGoogle Drive内に見つかりません。新規作成します。")
         initialize_db()
 
-# Google DriveにSQLiteデータベースをアップロード
-def upload_db_to_google_drive(drive):
-    # Google Drive上のファイルを検索
-    file_list = drive.ListFile({'q': f"title='{DB_FILE}' and trashed=false"}).GetList()
-    if file_list:
-        gfile = file_list[0]  # 最初のファイルを取得
-    else:
-        gfile = drive.CreateFile({"title": DB_FILE})
-
-    temp_db_path = f"/tmp/{DB_FILE}"
-    shutil.copy(DB_FILE, temp_db_path)  # 一時ファイルにコピー
-
-    gfile.SetContentFile(temp_db_path)
-    try:
-        gfile.Upload()
-        st.success(f"{DB_FILE} をGoogle Driveにアップロードしました。")
-    except Exception as e:
-        st.error(f"データベースアップロードに失敗しました: {e}")
-        return None
-
-    os.remove(temp_db_path)  # 一時ファイルを削除
-
-    return f"https://drive.google.com/uc?id={gfile['id']}"
-
 # メイン関数
 def main():
 

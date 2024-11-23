@@ -178,8 +178,34 @@ def get_metadata_from_doi(doi):
     return None
 
 
+# Google DriveにSQLiteデータベースをアップロード
+def upload_db_to_google_drive(DB_FILE,drive):
+    # Google Drive上のファイルを検索
+    file_list = drive.ListFile({'q': f"title='{DB_FILE}' and trashed=false"}).GetList()
+    if file_list:
+        gfile = file_list[0]  # 最初のファイルを取得
+    else:
+        gfile = drive.CreateFile({"title": DB_FILE})
+
+    temp_db_path = f"/tmp/{DB_FILE}"
+    shutil.copy(DB_FILE, temp_db_path)  # 一時ファイルにコピー
+
+    gfile.SetContentFile(temp_db_path)
+    try:
+        gfile.Upload()
+        st.success(f"{DB_FILE} をGoogle Driveにアップロードしました。")
+    except Exception as e:
+        st.error(f"データベースアップロードに失敗しました: {e}")
+        return None
+
+    os.remove(temp_db_path)  # 一時ファイルを削除
+
+    return f"https://drive.google.com/uc?id={gfile['id']}"
+
+
+
 # メタデータをデータベースに格納する関数
-def store_metadata_in_db(DB_FILE,metadata,file_link,uploaded_file):
+def store_metadata_in_db(DB_FILE,metadata,file_link,uploaded_file,drive):
     # セッションを作成
     DATABASE_URL=f"sqlite:///{DB_FILE}"
     engine=create_engine(DATABASE_URL)
@@ -245,6 +271,12 @@ def store_metadata_in_db(DB_FILE,metadata,file_link,uploaded_file):
                 session.add(new_record)
                 session.commit()
                 st.success("New record added to the database.")
+
+                # データベースをGoogle Driveにアップロード
+                db_link = upload_db_to_google_drive(DB_FILE,drive)
+                if db_link:  # データベースアップロードに成功した場合
+                    st.write("データベースはGoogle Driveにアップロードされました")
+
 
                 return  # 成功した場合、処理をここで終了
 
