@@ -23,9 +23,19 @@ def google_drive_auth(creds_file_path):
 
 # Google Drive にPDFをアップロード
 def upload_to_google_drive(drive, file):
+    # 一時ファイルに保存
+    temp_file_path = f"/tmp/{file.name}"
+    with open(temp_file_path, "wb") as temp_file:
+        temp_file.write(file.read())
+
+    # Google Driveにアップロード
     gfile = drive.CreateFile({"title": file.name})
-    gfile.SetContentFile(file.name)
+    gfile.SetContentFile(temp_file_path)
     gfile.Upload()
+
+    # アップロード後、一時ファイルを削除
+    os.remove(temp_file_path)
+
     return f"https://drive.google.com/uc?id={gfile['id']}"
 
 # GitHubリポジトリからSQLiteデータベースを取得
