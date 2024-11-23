@@ -545,24 +545,36 @@ def translate_and_summarize(text):
 # Google Drive へのアップロード関数
 def upload_to_google_drive(drive, uploaded_file):
     try:
-        # 一時ディレクトリを作成し、ファイルを保存
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as temp_file:
-            # アップロードされたファイルの内容をバイナリモードで読み書き
-            temp_file.write(uploaded_file.read())  # uploaded_fileがBytesIOかストリームであることを想定
-            temp_file_path = temp_file.name  # 一時ファイルのパスを取得
+        # 一時ファイルの作成
+        temp_file_path = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf").name
 
-        # Google Drive にアップロードするファイルメタデータを設定
-        gfile = drive.CreateFile({"title": uploaded_file.name})  # uploaded_file.name を使用
+        # アップロードするファイルのタイトル
+        filename = uploaded_file.name
 
-        # 一時ファイルを Google Drive にアップロード
-        gfile.SetContentFile(temp_file_path)
+        # アップロードされたファイルの内容を一時ファイルに書き込む
+        with open(temp_file_path, 'wb') as temp_file:
+            temp_file.write(uploaded_file.read())
 
-        # アップロードのトライ
-        gfile.Upload()
-        st.success(f"{uploaded_file.name} をGoogle Driveにアップロードしました。")
+        # 既存ファイルを検索
+        existing_files = drive.ListFile({'q': f"title='{filename}' and trashed=false"}).GetList()
 
-        # アップロードしたファイルのリンクを返す
-        return temp_file_path, f"https://drive.google.com/uc?id={gfile['id']}"
+        if existing_files:
+            # 既存のファイルが見つかった場合は上書き
+            gfile = existing_files[0]  # 最初のファイルを選択
+            gfile.SetContentFile(temp_file_path)  # 一時ファイルを新しい内容で設定
+            gfile.Upload()
+            st.success(f"既存のファイル '{filename}' をGoogle Driveに上書きしました。")
+            file_link = f"https://drive.google.com/uc?id={gfile['id']}"
+        else:
+            # 新規ファイル作成
+            gfile = drive.CreateFile({"title": filename})
+            gfile.SetContentFile(temp_file_path)
+            gfile.Upload()
+            st.success(f"{filename} をGoogle Driveにアップロードしました。")
+            file_link = f"https://drive.google.com/uc?id={gfile['id']}"
+
+        # アップロードしたファイルのリンクと一時ファイルのパスを返す
+        return temp_file_path,file_link
 
     except Exception as e:
         st.error(f"アップロード失敗: {e}")
