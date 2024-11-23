@@ -71,7 +71,7 @@ def main():
                     #メタデータ表示
                     metadata=display_metadata(doi)
                     #データベースへの格納処理
-                    store_metadata_in_db(DB_FILE,metadata,file_link,temp_file_path)
+                    store_metadata_in_db(DB_FILE,metadata,file_link,uploaded_file)
                     #再読み込み
                     st.cache_data.clear()  # キャッシュをクリア
                     df = pd.read_sql("SELECT * FROM metadata", conn)  # データ再読み込み
@@ -94,18 +94,13 @@ def main():
                 # アップロードされたPDFを処理
                 uploaded_file = st.file_uploader("PDFをアップロード", type=["pdf"])
                 if uploaded_file:
-                    # 一時的なファイルパスを作成
-                    with tempfile.NamedTemporaryFile(delete=False) as temp_file:
-                        temp_file.write(uploaded_file.getvalue())
-                        temp_file_path = temp_file.name
-
                     # Google Drive にPDFをアップロード
-                    file_link = upload_to_google_drive(drive, temp_file_path)
+                    temp_file_path, file_link = upload_to_google_drive(drive, uploaded_file)
 
                     if file_link:  # アップロードに成功した場合
 
                         #データベースへの格納処理
-                        store_metadata_in_db(DB_FILE,metadata,file_link,temp_file_path)
+                        store_metadata_in_db(DB_FILE,metadata,file_link,uploaded_file)
                         #再読み込み
                         st.cache_data.clear()  # キャッシュをクリア
                         df = pd.read_sql("SELECT * FROM metadata", conn)  # データ再読み込み
