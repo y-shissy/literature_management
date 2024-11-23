@@ -510,21 +510,31 @@ def translate_and_summarize(text):
 
     return summary, keyword_res,category_res
 
-
-# PDFファイルをGoogle Driveにアップロード
-def upload_to_google_drive(drive, file):
-    temp_file_path = f"/tmp/{file.name}"
-    with open(temp_file_path, "wb") as temp_file:
-        temp_file.write(file.read())
-
-    gfile = drive.CreateFile({"title": file.name})
-    gfile.SetContentFile(temp_file_path)
+# Google Drive へのアップロード関数
+def upload_to_google_drive(drive, uploaded_file):
     try:
+        # 一時ディレクトリを作成し、ファイルを保存
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as temp_file:
+            # アップロードされたファイルの内容をバイナリモードで読み書き
+            temp_file.write(uploaded_file.read())  # .getvalue()ではなく.read()を使用
+            temp_file_path = temp_file.name  # 一時ファイルのパスを取得
+
+        # Google Drive にアップロードするファイルメタデータを設定
+        gfile = drive.CreateFile({"title": uploaded_file.name})  # uploaded_file.name を使用
+
+        # 一時ファイルを Google Drive にアップロード
+        gfile.SetContentFile(temp_file_path)
         gfile.Upload()
-        st.success(f"{file.name} をGoogle Driveにアップロードしました。")
+        st.success(f"{uploaded_file.name} をGoogle Driveにアップロードしました。")
+
+        # 一時ファイルを削除
+        os.remove(temp_file_path)
+
+        # アップロードしたファイルのリンクを返す
+        return f"https://drive.google.com/uc?id={gfile['id']}"
+
     except Exception as e:
         st.error(f"アップロード失敗: {e}")
+        if os.path.exists(temp_file_path):
+            os.remove(temp_file_path)  # 一時ファイルを削除
         return None
-
-    os.remove(temp_file_path)
-    return f"https://drive.google.com/uc?id={gfile['id']}"
