@@ -1,7 +1,7 @@
 import streamlit as st
 from pydrive.auth import GoogleAuth
 from pydrive.drive import GoogleDrive
-from git import Repo
+from git import Repo, GitCommandError
 import sqlite3
 import os
 import tempfile
@@ -60,10 +60,10 @@ def push_db_to_github():
     repo = Repo(local_dir)
     db_path = os.path.join(local_dir, DB_FILE)
     os.rename(DB_FILE, db_path)
-    repo.git.add(DB_FILE)
-    repo.index.commit("Update database")
+    repo.index.add([DB_FILE])
+    repo.index.commit("Update database")  # 自己署名のコミット
     repo.remote().push()
-
+    
 # Streamlitアプリの構成
 st.title("PDF管理＆SQLiteデータベース管理アプリ")
 
