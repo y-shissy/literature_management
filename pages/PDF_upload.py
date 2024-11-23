@@ -73,11 +73,6 @@ def main():
                     # データベースへの格納処理
                     store_metadata_in_db(DB_FILE, metadata, file_link, uploaded_file, drive)
 
-                    # データ再読み込み（必要に応じて）
-                    st.cache_data.clear()  # キャッシュをクリア
-                    df = pd.read_sql("SELECT * FROM metadata", conn)  # データ再読み込み
-                    st.session_state["df"] = df
-
                 else:
                     st.error("DOI could not be found.")
                     return  # 最後に処理を終了させる
@@ -102,10 +97,6 @@ def main():
 
                         #データベースへの格納処理
                         store_metadata_in_db(DB_FILE, metadata, file_link, uploaded_file, drive)
-                        #再読み込み
-                        st.cache_data.clear()  # キャッシュをクリア
-                        df = pd.read_sql("SELECT * FROM metadata", conn)  # データ再読み込み
-                        st.session_state["df"] = df
 
                     else:
                         st.error("DOI could not be found.")
