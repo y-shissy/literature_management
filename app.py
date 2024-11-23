@@ -4,21 +4,33 @@ from pydrive.drive import GoogleDrive
 import sqlite3
 import os
 import tempfile
-import shutil 
+import shutil
 
-# SQLiteデータベース名
 DB_FILE = "data.db"
 
 # Google Drive 認証設定
 def google_drive_auth(creds_file_path):
     gauth = GoogleAuth()
     gauth.LoadCredentialsFile(creds_file_path)
-    # 認証トークンが期限切れの場合は更新
     if gauth.access_token_expired:
         gauth.Refresh()
     else:
         gauth.Authorize()
     return GoogleDrive(gauth)
+
+# SQLiteデータベースを初期化
+def initialize_db():
+    conn = sqlite3.connect(DB_FILE)
+    c = conn.cursor()
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS pdf_data (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT,
+            link TEXT
+        )
+    """)
+    conn.commit()
+    conn.close()
 
 # Google Drive にPDFをアップロード
 def upload_to_google_drive(drive, file):
@@ -37,15 +49,13 @@ def upload_to_google_drive(drive, file):
 # Google DriveにSQLiteデータベースをアップロード
 def upload_db_to_google_drive(drive):
     temp_db_path = f"/tmp/{DB_FILE}"
-
-    # shutil.moveを使ってファイルを移動
     shutil.move(DB_FILE, temp_db_path)  # 一時ファイルに移動
 
     gfile = drive.CreateFile({"title": DB_FILE})
     gfile.SetContentFile(temp_db_path)
     gfile.Upload()
 
-    os.remove(temp_db_path)  # アップロード後、一時ファイルを削除
+    os.remove(temp_db_path)
 
     return f"https://drive.google.com/uc?id={gfile['id']}"
 
@@ -70,6 +80,9 @@ except Exception as e:
     st.error(f"Google Drive認証に失敗しました: {e}")
     st.stop()
 
+# データベースの初期化
+initialize_db()
+
 # アップロードされたPDFを処理
 uploaded_file = st.file_uploader("PDFをアップロード", type=["pdf"])
 if uploaded_file:
@@ -79,13 +92,6 @@ if uploaded_file:
     # SQLiteデータベースに記録
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
-    c.execute("""
-        CREATE TABLE IF NOT EXISTS pdf_data (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            title TEXT,
-            link TEXT
-        )
-    """)
     c.execute("INSERT INTO pdf_data (title, link) VALUES (?, ?)", (uploaded_file.name, file_link))
     conn.commit()
     conn.close()
