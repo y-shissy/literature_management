@@ -94,7 +94,7 @@ def get_metadata_from_doi(doi):
     # Crossref APIを利用
     crossref_url = f"https://api.crossref.org/works/{doi}"
     try:
-        response = requests.get(crossref_url, timeout=10)  # タイムアウトを設定
+        response = requests.get(crossref_url, timeout=10,verify=False)  # タイムアウトを設定
         response.raise_for_status()  # ステータスコードが200以外の場合に例外を投げる
     except requests.RequestException as e:
         st.warning(f"Crossref API error: {e}")
@@ -123,7 +123,7 @@ def get_metadata_from_doi(doi):
     # JALC REST APIを利用
     jalc_url = f"https://api.japanlinkcenter.org/dois/{doi}"
     try:
-        response = requests.get(jalc_url, timeout=10)
+        response = requests.get(jalc_url, timeout=10,verify=False)
         response.raise_for_status()
     except requests.RequestException as e:
         st.warning(f"JALC API error: {e}")
@@ -352,7 +352,7 @@ def search_doi_on_cinii(filename):
 
     try:
         # リクエストを送信してレスポンスを取得
-        response = requests.get(search_url)
+        response = requests.get(search_url,verify=False)
 
         # レスポンスが成功したかを確認
         if response.status_code == 200:
@@ -384,7 +384,7 @@ def search_doi_on_crossref(filename):
 
     try:
         # リクエストを送信してレスポンスを取得
-        response = requests.get(search_url)
+        response = requests.get(search_url,verify=False)
 
         # レスポンスが成功したかを確認
         if response.status_code == 200:
@@ -408,7 +408,7 @@ def search_doi_on_crossref(filename):
 def get_final_url(doi_url):
     try:
         # リダイレクトをフォローして最終URLを取得
-        response = requests.get(doi_url, allow_redirects=True)
+        response = requests.get(doi_url, allow_redirects=True,verify=False)
         response.raise_for_status()  # ステータスコードがエラーの場合は例外を発生させる
         
         # 最終的なリダイレクト先のURLを取得
@@ -423,7 +423,7 @@ def get_final_url(doi_url):
 # doiのリンク先からアブストラクトを含む文字全文を抽出する関数
 def get_abstract_from_url(url):
     try:
-        response = requests.get(url)
+        response = requests.get(url,verify=False)
         response.raise_for_status()  # ステータスコードがエラーの場合は例外を発生させる
         soup = BeautifulSoup(response.content, "lxml")
         # ページの全文を取得（HTML全体のテキスト部分を取得する方法）
