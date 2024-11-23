@@ -43,10 +43,13 @@ def upload_to_google_drive(drive, file):
     gfile.Upload()
 
     # アクセス権を変更：リンクを持つ誰でも閲覧可能にする
-    gfile.InsertPermission({
-        'type': 'anyone',
-        'role': 'reader',
-    })
+    try:
+        gfile.InsertPermission({
+            'type': 'anyone',
+            'role': 'reader',
+        })
+    except Exception as e:
+        st.error(f"権限設定に失敗しました: {e}")
 
     os.remove(temp_file_path)
     return f"https://drive.google.com/uc?id={gfile['id']}"
@@ -60,7 +63,7 @@ def download_db_from_google_drive(drive):
         st.success(f"{DB_FILE} をGoogle Driveからダウンロードしました。")
     else:
         st.error(f"{DB_FILE} がGoogle Drive内に見つかりません。新規作成します。")
-        initialize_db() 
+        initialize_db()
 
 # Google DriveにSQLiteデータベースをアップロード
 def upload_db_to_google_drive(drive):
@@ -78,10 +81,13 @@ def upload_db_to_google_drive(drive):
     gfile.Upload()
 
     # アクセス権を変更：リンクを持つ誰でも閲覧可能にする
-    gfile.InsertPermission({
-        'type': 'anyone',
-        'role': 'reader',
-    })
+    try:
+        gfile.InsertPermission({
+            'type': 'anyone',
+            'role': 'reader',
+        })
+    except Exception as e:
+        st.error(f"権限設定に失敗しました: {e}")
 
     os.remove(temp_db_path)  # 一時ファイルを削除
 
