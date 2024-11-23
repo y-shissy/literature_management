@@ -55,12 +55,12 @@ def main():
             # Google Drive にPDFをアップロード
             temp_file_path, file_link = upload_to_google_drive(drive, uploaded_file)
 
-            if temp_file_path:  # アップロードに成功した場合
+            if file_link:  # アップロードに成功した場合
                 # DOI抽出処理
                 doi, first_text = process_pdf(temp_file_path)  # 一時ファイルパスを渡す
 
                 if not doi:
-                    # If DOI extraction fails, search using filename
+                    # DOIの抽出に失敗した場合、ファイル名を使って検索
                     search_term = os.path.splitext(uploaded_file.name)[0]
                     doi = search_doi_from_filename(search_term)
                     st.write(f"Search term: {search_term}") 
@@ -68,11 +68,12 @@ def main():
 
                 if doi:
                     st.success(f"DOI found: {doi}")
-                    #メタデータ表示
-                    metadata=display_metadata(doi)
-                    #データベースへの格納処理
-                    store_metadata_in_db(DB_FILE,metadata,file_link,uploaded_file,drive)
-                    #再読み込み
+                    # メタデータ表示
+                    metadata = display_metadata(doi)
+                    # データベースへの格納処理
+                    store_metadata_in_db(DB_FILE, metadata, file_link, uploaded_file, drive)
+
+                    # データ再読み込み（必要に応じて）
                     st.cache_data.clear()  # キャッシュをクリア
                     df = pd.read_sql("SELECT * FROM metadata", conn)  # データ再読み込み
                     st.session_state["df"] = df
@@ -100,7 +101,7 @@ def main():
                     if file_link:  # アップロードに成功した場合
 
                         #データベースへの格納処理
-                        store_metadata_in_db(DB_FILE,metadata,file_link,uploaded_file,drive)
+                        store_metadata_in_db(DB_FILE, metadata, file_link, uploaded_file, drive)
                         #再読み込み
                         st.cache_data.clear()  # キャッシュをクリア
                         df = pd.read_sql("SELECT * FROM metadata", conn)  # データ再読み込み

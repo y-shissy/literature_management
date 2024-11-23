@@ -105,10 +105,39 @@ def download_db_from_google_drive(drive):
         st.error(f"{DB_FILE} がGoogle Drive内に見つかりません。新規作成します。")
         initialize_db()
 
-# メイン関数
+# メイン処理
 def main():
-
     st.title(":book:文献管理アプリ")
+
+    # 認証情報ファイルのアップロード
+    if "drive" not in st.session_state:
+        uploaded_creds_file = st.file_uploader("認証情報ファイル (`mycreds.txt`) をアップロード", type=["txt"])
+
+        if uploaded_creds_file:
+            # 一時ファイルとして`mycreds.txt`を保存
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".txt") as temp_creds_file:
+                temp_creds_file.write(uploaded_creds_file.read())
+                temp_creds_path = temp_creds_file.name
+
+            # Google Drive 認証
+            try:
+                gauth, drive = google_drive_auth(temp_creds_path)
+                st.session_state['drive'] = drive  # 認証したDriveオブジェクトをsession_stateに保存
+                st.success("Google Drive認証に成功しました。")
+            except Exception as e:
+                st.error(f"Google Drive認証に失敗しました: {e}")
+                st.stop()
+        else:
+            st.warning("Google Driveの認証には`mycreds.txt`ファイルをアップロードしてください。")
+            st.stop()
+    else:
+        st.success("すでにGoogle Driveに認証されています。")
+
+    # Google Driveからデータベースをダウンロード，データが無い場合は初期化
+    download_db_from_google_drive(drive)
+
+    # データベース読み込み
+    read_db()
 
     # タブ別表示
     items=["データベース表示","文献追加","ナレッジ検索","設定"]
@@ -292,36 +321,9 @@ def main():
     with tabs[3]:
         st.write("under construction")
 
-
-if __name__== "__main__":
-    # `mycreds.txt`ファイルをアップロード
-    uploaded_creds_file = st.file_uploader("認証情報ファイル (`mycreds.txt`) をアップロード", type=["txt"])
-    if not uploaded_creds_file:
-        st.warning("Google Driveの認証には`mycreds.txt`ファイルをアップロードしてください。")
-        st.stop()
-
-    # 一時ファイルとして`mycreds.txt`を保存
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".txt") as temp_creds_file:
-        temp_creds_file.write(uploaded_creds_file.read())
-        temp_creds_path = temp_creds_file.name
-
-    # Google Drive 認証
-    try:
-        gauth, drive = google_drive_auth(temp_creds_path)
-        st.session_state['drive']=drive
-    except Exception as e:
-        st.error(f"Google Drive認証に失敗しました: {e}")
-        st.stop()
-
-    # Google Driveからデータベースをダウンロード，データが無い場合は初期化
-    download_db_from_google_drive(drive)
-
-    # データベース読み込み
-    read_db()
-    # メイン処理
+if __name__ == "__main__":
+    # アプリケーションを実行
     main()
-
-
 
 css ='''
 <style>

@@ -273,10 +273,7 @@ def store_metadata_in_db(DB_FILE,metadata,file_link,uploaded_file,drive):
                 st.success("New record added to the database.")
 
                 # データベースをGoogle Driveにアップロード
-                db_link = upload_db_to_google_drive(DB_FILE,drive)
-                if db_link:  # データベースアップロードに成功した場合
-                    st.write("データベースはGoogle Driveにアップロードされました")
-
+                upload_db_to_google_drive(DB_FILE,drive)
 
                 return  # 成功した場合、処理をここで終了
 
@@ -548,7 +545,7 @@ def upload_to_google_drive(drive, uploaded_file):
         # 一時ディレクトリを作成し、ファイルを保存
         with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as temp_file:
             # アップロードされたファイルの内容をバイナリモードで読み書き
-            temp_file.write(uploaded_file.read())
+            temp_file.write(uploaded_file.read())  # uploaded_fileがBytesIOかストリームであることを想定
             temp_file_path = temp_file.name  # 一時ファイルのパスを取得
 
         # Google Drive にアップロードするファイルメタデータを設定
@@ -556,6 +553,8 @@ def upload_to_google_drive(drive, uploaded_file):
 
         # 一時ファイルを Google Drive にアップロード
         gfile.SetContentFile(temp_file_path)
+
+        # アップロードのトライ
         gfile.Upload()
         st.success(f"{uploaded_file.name} をGoogle Driveにアップロードしました。")
 
@@ -565,3 +564,8 @@ def upload_to_google_drive(drive, uploaded_file):
     except Exception as e:
         st.error(f"アップロード失敗: {e}")
         return None, None
+
+    finally:
+        # 一時ファイルを削除。エラーが発生しても確実に削除するためにfinallyブロックに配置。
+        if temp_file_path and os.path.exists(temp_file_path):
+            os.remove(temp_file_path)  # 一時ファイルの削除
