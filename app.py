@@ -38,6 +38,10 @@ categories = ["A","B"]
 # 文献にタグ付けするキーワードの選択肢
 keywords = ["a","b"]
 
+#session_stateに保存
+st.session_state["categories"]=categories
+st.session_state["keywords"]=keywords
+
 
 # Google Drive 認証設定
 def google_drive_auth(creds_file_path):
@@ -89,24 +93,6 @@ def read_db():
             st.session_state["df"] = df
         except Exception as e:
             st.error(f"データの読み込み中にエラーが発生しました：{e}")
-
-# PDFファイルをGoogle Driveにアップロード
-def upload_to_google_drive(drive, file):
-    temp_file_path = f"/tmp/{file.name}"
-    with open(temp_file_path, "wb") as temp_file:
-        temp_file.write(file.read())
-
-    gfile = drive.CreateFile({"title": file.name})
-    gfile.SetContentFile(temp_file_path)
-    try:
-        gfile.Upload()
-        st.success(f"{file.name} をGoogle Driveにアップロードしました。")
-    except Exception as e:
-        st.error(f"アップロード失敗: {e}")
-        return None
-
-    os.remove(temp_file_path)
-    return f"https://drive.google.com/uc?id={gfile['id']}"
 
 # Google DriveからSQLiteデータベースをダウンロード
 def download_db_from_google_drive(drive):
@@ -273,36 +259,44 @@ def main():
                         pdf_viewer(input=binary_data, width=1400)
 
     with tabs[1]:
-        st.write("under construction")
+        st.markdown("### PDFアップロード")
+        if st.button("PDF Uploader"):
+            st.switch_page("pages/PDF_upload.py")
+
+        st.markdown("### PDFアップロード・AI自動要約")
+        if st.button("PDF Uploader with AI"):
+            st.switch_page("pages/PDF_upload_AI.py")
+
+        st.markdown("### アップロード済PDFのAI自動要約")
+        if st.button("AI Summary"):
+            st.switch_page("pages/AI_summary.py")
 
 
+        # # アップロードされたPDFを処理
+        # uploaded_file = st.file_uploader("PDFをアップロード", type=["pdf"])
+        # if uploaded_file:
+        #     # Google Drive にPDFをアップロード
+        #     file_link = upload_to_google_drive(drive, uploaded_file)
 
+        #     if file_link:  # アップロードに成功した場合
+        #         # SQLiteデータベースに記録
+        #         conn = sqlite3.connect(DB_FILE)
+        #         c = conn.cursor()
+        #         try:
+        #             c.execute("INSERT INTO pdf_data (title, link) VALUES (?, ?)", (uploaded_file.name, file_link))
+        #             conn.commit()
+        #             st.success("PDFの情報がデータベースに追加されました！")
+        #         except Exception as e:
+        #             st.error(f"データベースへの追加に失敗しました: {e}")
+        #         finally:
+        #             conn.close()
 
-        # アップロードされたPDFを処理
-        uploaded_file = st.file_uploader("PDFをアップロード", type=["pdf"])
-        if uploaded_file:
-            # Google Drive にPDFをアップロード
-            file_link = upload_to_google_drive(drive, uploaded_file)
-
-            if file_link:  # アップロードに成功した場合
-                # SQLiteデータベースに記録
-                conn = sqlite3.connect(DB_FILE)
-                c = conn.cursor()
-                try:
-                    c.execute("INSERT INTO pdf_data (title, link) VALUES (?, ?)", (uploaded_file.name, file_link))
-                    conn.commit()
-                    st.success("PDFの情報がデータベースに追加されました！")
-                except Exception as e:
-                    st.error(f"データベースへの追加に失敗しました: {e}")
-                finally:
-                    conn.close()
-
-                # データベースをGoogle Driveにアップロード
-                db_link = upload_db_to_google_drive(drive)
-                if db_link:  # データベースアップロードに成功した場合
-                    st.success("データベースを更新しました！")
-                    st.write(f"PDFリンク: [ここをクリック]({file_link})")
-                    st.write(f"データベースはGoogle Driveにアップロードされました。リンク: [ここをクリック]({db_link})")
+        #         # データベースをGoogle Driveにアップロード
+        #         db_link = upload_db_to_google_drive(drive)
+        #         if db_link:  # データベースアップロードに成功した場合
+        #             st.success("データベースを更新しました！")
+        #             st.write(f"PDFリンク: [ここをクリック]({file_link})")
+        #             st.write(f"データベースはGoogle Driveにアップロードされました。リンク: [ここをクリック]({db_link})")
 
         # データベースから保存済みPDFを表示
         try:
@@ -323,28 +317,42 @@ def main():
         st.write("under construction")
 
 
-# `mycreds.txt`ファイルをアップロード
-uploaded_creds_file = st.file_uploader("認証情報ファイル (`mycreds.txt`) をアップロード", type=["txt"])
-if not uploaded_creds_file:
-    st.warning("Google Driveの認証には`mycreds.txt`ファイルをアップロードしてください。")
-    st.stop()
+if __name__== "__main__":
+    # `mycreds.txt`ファイルをアップロード
+    uploaded_creds_file = st.file_uploader("認証情報ファイル (`mycreds.txt`) をアップロード", type=["txt"])
+    if not uploaded_creds_file:
+        st.warning("Google Driveの認証には`mycreds.txt`ファイルをアップロードしてください。")
+        st.stop()
 
-# 一時ファイルとして`mycreds.txt`を保存
-with tempfile.NamedTemporaryFile(delete=False, suffix=".txt") as temp_creds_file:
-    temp_creds_file.write(uploaded_creds_file.read())
-    temp_creds_path = temp_creds_file.name
+    # 一時ファイルとして`mycreds.txt`を保存
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".txt") as temp_creds_file:
+        temp_creds_file.write(uploaded_creds_file.read())
+        temp_creds_path = temp_creds_file.name
 
-# Google Drive 認証
-try:
-    gauth, drive = google_drive_auth(temp_creds_path)
-except Exception as e:
-    st.error(f"Google Drive認証に失敗しました: {e}")
-    st.stop()
+    # Google Drive 認証
+    try:
+        gauth, drive = google_drive_auth(temp_creds_path)
+        st.session_state['drive']=drive
+    except Exception as e:
+        st.error(f"Google Drive認証に失敗しました: {e}")
+        st.stop()
 
-# Google Driveからデータベースをダウンロード，データが無い場合は初期化
-download_db_from_google_drive(drive)
+    # Google Driveからデータベースをダウンロード，データが無い場合は初期化
+    download_db_from_google_drive(drive)
 
-# データベース読み込み
-read_db()
+    # データベース読み込み
+    read_db()
+    # メイン処理
+    main()
 
-main()
+
+
+css ='''
+<style>
+    .stTabs [data-baseweb="tab-list"] button [data-testid="stMarkdownContainer"] p {
+    font-size:1.5rem;
+    }
+</style>
+'''
+
+st.markdown(css,unsafe_allow_html=True)
