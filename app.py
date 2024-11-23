@@ -18,7 +18,7 @@ def google_drive_auth(creds_file_path):
         gauth.Authorize()
     return GoogleDrive(gauth)
 
-# SQLiteデータベースを初期化
+# SQLiteデータベースを初期化または接続
 def initialize_db():
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
@@ -32,7 +32,7 @@ def initialize_db():
     conn.commit()
     conn.close()
 
-# Google Drive にPDFをアップロード
+# PDFファイルをGoogle Driveにアップロード
 def upload_to_google_drive(drive, file):
     temp_file_path = f"/tmp/{file.name}"
     with open(temp_file_path, "wb") as temp_file:
@@ -43,7 +43,6 @@ def upload_to_google_drive(drive, file):
     gfile.Upload()
 
     os.remove(temp_file_path)
-
     return f"https://drive.google.com/uc?id={gfile['id']}"
 
 # Google DriveからSQLiteデータベースをダウンロード
@@ -51,21 +50,30 @@ def download_db_from_google_drive(drive):
     file_list = drive.ListFile({'q': f"title='{DB_FILE}' and trashed=false"}).GetList()
     if file_list:
         gfile = file_list[0]  # 最初のファイルを取得
-        gfile.GetContentFile(DB_FILE)  # データベースをローカルに保存
+        gfile.GetContentFile(DB_FILE)  # ローカルにデータベースを保存
         st.success(f"{DB_FILE} をGoogle Driveからダウンロードしました。")
     else:
-        st.error(f"{DB_FILE} がGoogle Drive内に見つかりません。")
+        st.error(f"{DB_FILE} がGoogle Drive内に見つかりません。新規作成します。")
+        # 初回のため新しいデータベースファイルを生成
+        initialize_db() 
 
 # Google DriveにSQLiteデータベースをアップロード
 def upload_db_to_google_drive(drive):
+    # Google Drive上のファイルを検索
+    file_list = drive.ListFile({'q': f"title='{DB_FILE}' and trashed=false"}).GetList()
+    if file_list:
+        gfile = file_list[0]  # 最初のファイルを取得
+    else:
+        # ファイルが存在しない場合は新規作成
+        gfile = drive.CreateFile({"title": DB_FILE})
+
     temp_db_path = f"/tmp/{DB_FILE}"
     shutil.move(DB_FILE, temp_db_path)  # 一時ファイルに移動
 
-    gfile = drive.CreateFile({"title": DB_FILE})
     gfile.SetContentFile(temp_db_path)
     gfile.Upload()
 
-    os.remove(temp_db_path)
+    os.remove(temp_db_path)  # 一時ファイルを削除
 
     return f"https://drive.google.com/uc?id={gfile['id']}"
 
@@ -90,11 +98,11 @@ except Exception as e:
     st.error(f"Google Drive認証に失敗しました: {e}")
     st.stop()
 
-# データベースの初期化
-initialize_db()
-
 # Google Driveからデータベースをダウンロード
 download_db_from_google_drive(drive)
+
+# データベースの初期化
+initialize_db()
 
 # アップロードされたPDFを処理
 uploaded_file = st.file_uploader("PDFをアップロード", type=["pdf"])
