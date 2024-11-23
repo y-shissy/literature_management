@@ -46,6 +46,16 @@ def upload_to_google_drive(drive, file):
 
     return f"https://drive.google.com/uc?id={gfile['id']}"
 
+# Google DriveからSQLiteデータベースをダウンロード
+def download_db_from_google_drive(drive):
+    file_list = drive.ListFile({'q': f"title='{DB_FILE}' and trashed=false"}).GetList()
+    if file_list:
+        gfile = file_list[0]  # 最初のファイルを取得
+        gfile.GetContentFile(DB_FILE)  # データベースをローカルに保存
+        st.success(f"{DB_FILE} をGoogle Driveからダウンロードしました。")
+    else:
+        st.error(f"{DB_FILE} がGoogle Drive内に見つかりません。")
+
 # Google DriveにSQLiteデータベースをアップロード
 def upload_db_to_google_drive(drive):
     temp_db_path = f"/tmp/{DB_FILE}"
@@ -82,6 +92,9 @@ except Exception as e:
 
 # データベースの初期化
 initialize_db()
+
+# Google Driveからデータベースをダウンロード
+download_db_from_google_drive(drive)
 
 # アップロードされたPDFを処理
 uploaded_file = st.file_uploader("PDFをアップロード", type=["pdf"])
