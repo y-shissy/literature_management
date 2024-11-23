@@ -46,20 +46,6 @@ def upload_db_to_google_drive(drive):
 
     return f"https://drive.google.com/uc?id={gfile['id']}"
 
-# Google DriveにPDFをアップロード
-def upload_to_google_drive(drive, file):
-    temp_file_path = f"/tmp/{file.name}"
-    with open(temp_file_path, "wb") as temp_file:
-        temp_file.write(file.read())
-
-    gfile = drive.CreateFile({"title": file.name})
-    gfile.SetContentFile(temp_file_path)
-    gfile.Upload()
-
-    os.remove(temp_file_path)
-
-    return f"https://drive.google.com/uc?id={gfile['id']}"
-
 # Streamlitアプリの構成
 st.title("PDF管理＆SQLiteデータベース管理アプリ")
 
@@ -80,10 +66,6 @@ try:
 except Exception as e:
     st.error(f"Google Drive認証に失敗しました: {e}")
     st.stop()
-
-# ユーザに名前とメールアドレスを入力させる
-user_name = st.text_input("GitHubへのコミット用の名前を入力してください")
-user_email = st.text_input("GitHubへのコミット用のメールアドレスを入力してください")
 
 # アップロードされたPDFを処理
 uploaded_file = st.file_uploader("PDFをアップロード", type=["pdf"])
@@ -109,7 +91,7 @@ if uploaded_file:
     try:
         db_link = upload_db_to_google_drive(drive)
         st.success("PDFをアップロードし、データベースを更新しました！")
-        st.write(f"リンク: [ここをクリック]({file_link})")
+        st.write(f"PDFリンク: [ここをクリック]({file_link})")
         st.write(f"データベースはGoogle Driveにアップロードされました。リンク: [ここをクリック]({db_link})")
     except Exception as e:
         st.error(f"データベースのGoogle Drive同期に失敗しました: {e}")
