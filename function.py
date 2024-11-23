@@ -205,25 +205,19 @@ def upload_db_to_google_drive(DB_FILE,drive):
 
 
 # メタデータをデータベースに格納する関数
-def store_metadata_in_db(DB_FILE,metadata,file_link,uploaded_file,drive):
+def store_metadata_in_db(DB_FILE, metadata, file_link, uploaded_file, drive):
     # セッションを作成
-    DATABASE_URL=f"sqlite:///{DB_FILE}"
-    engine=create_engine(DATABASE_URL)
-    SessionLocal=sessionmaker(bind=engine)
+    DATABASE_URL = f"sqlite:///{DB_FILE}"
+    engine = create_engine(DATABASE_URL)
+    SessionLocal = sessionmaker(bind=engine)
     session = SessionLocal()
-    #カテゴリ，キーワード読み込み
-    categories=st.session_state["categories"]
-    keywords=st.session_state["keywords"]
-    
-    try:
-        # DOIがすでに存在するか確認
-        existing_record = session.query(Metadata).filter_by(doi=metadata['doi']).first()
-        
-        if existing_record:
-            st.warning("This DOI is already in the database.")
-            return
 
-        # カラムの幅を指定
+    # カテゴリ，キーワード読み込み
+    categories = st.session_state["categories"]
+    keywords = st.session_state["keywords"]
+
+    try:
+        # メタデータ入力フォーム
         col1, col2 = st.columns([3, 1])
 
         with col1:
@@ -248,6 +242,7 @@ def store_metadata_in_db(DB_FILE,metadata,file_link,uploaded_file,drive):
 
                 # 選択したキーワードをカンマ区切りの文字列に変換
                 selected_keywords_str = ",".join(selected_keywords)
+
                 # 新しいメタデータレコードを作成
                 new_record = Metadata(
                     doi=metadata['doi'],
@@ -273,10 +268,7 @@ def store_metadata_in_db(DB_FILE,metadata,file_link,uploaded_file,drive):
                 st.success("New record added to the database.")
 
                 # データベースをGoogle Driveにアップロード
-                upload_db_to_google_drive(DB_FILE,drive)
-
-                return  # 成功した場合、処理をここで終了
-
+                upload_db_to_google_drive(DB_FILE, drive)
 
     except Exception as e:
         st.warning(f"An error occurred: {e}")

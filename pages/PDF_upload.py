@@ -39,69 +39,69 @@ st.set_page_config(
 )
 #Google drive
 drive=st.session_state['drive']
-
 # メイン関数
 def main():
-        
     st.markdown("### PDFアップロード")
     DB_FILE = "literature_database.db"
-    conn = sqlite3.connect(DB_FILE)
+    engine = create_engine(f"sqlite:///{DB_FILE}")
 
-    option = st.radio("操作を選択してください", ('DOI自動判別','DOI手動入力'))
+    option = st.radio("操作を選択してください", ('DOI自動判別', 'DOI手動入力'))
+
+    def process_doi_input(doi_input, uploaded_file):
+        """
+        DOI 処理共通ロジックを関数化
+        """
+        SessionLocal = sessionmaker(bind=engine)
+        session = SessionLocal()
+        try:
+            # データベースに DOI が存在するか確認
+            existing_record = session.query(Metadata).filter_by(doi=doi_input).first()
+            if existing_record:
+                st.warning("This DOI is already in the database.")
+                return
+
+            # メタデータ取得
+            metadata = display_metadata(doi_input)
+            if not metadata:
+                st.error("Metadata could not be retrieved.")
+                return
+
+            # Google Drive に PDF をアップロード
+            temp_file_path, file_link = upload_to_google_drive(drive, uploaded_file)
+            if not file_link:
+                st.error("File upload failed.")
+                return
+
+            # メタデータをデータベースに格納
+            store_metadata_in_db(DB_FILE, metadata, file_link, uploaded_file, drive)
+        finally:
+            session.close()
+
     if option == 'DOI自動判別':
-        # アップロードされたPDFを処理
         uploaded_file = st.file_uploader("PDFをアップロード", type=["pdf"])
         if uploaded_file:
-            # Google Drive にPDFをアップロード
+            # DOI を抽出
             temp_file_path, file_link = upload_to_google_drive(drive, uploaded_file)
+            doi, first_text = process_pdf(temp_file_path)
+            if not doi:
+                # 抽出失敗時にファイル名から検索
+                search_term = os.path.splitext(uploaded_file.name)[0]
+                doi = search_doi_from_filename(search_term)
+                st.write(f"Search term: {search_term}")
+                st.write(f"Searched DOI: {doi}")
 
-            if file_link:  # アップロードに成功した場合
-                # DOI抽出処理
-                doi, first_text = process_pdf(temp_file_path)  # 一時ファイルパスを渡す
-
-                if not doi:
-                    # DOIの抽出に失敗した場合、ファイル名を使って検索
-                    search_term = os.path.splitext(uploaded_file.name)[0]
-                    doi = search_doi_from_filename(search_term)
-                    st.write(f"Search term: {search_term}") 
-                    st.write(f"Searched DOI: {doi}") 
-
-                if doi:
-                    st.success(f"DOI found: {doi}")
-                    # メタデータ表示
-                    metadata = display_metadata(doi)
-                    # データベースへの格納処理
-                    store_metadata_in_db(DB_FILE, metadata, file_link, uploaded_file, drive)
-
-                else:
-                    st.error("DOI could not be found.")
-                    return  # 最後に処理を終了させる
-
+            if doi:
+                st.success(f"DOI found: {doi}")
+                process_doi_input(doi, uploaded_file)
+            else:
+                st.error("DOI could not be found.")
 
     elif option == 'DOI手動入力':
         doi_input = st.text_input("DOIを入力してください")
-        if doi_input:
-            metadata=display_metadata(doi_input)
-
-            if metadata:
-                st.success(f"DOI found: {doi_input}")
-
-
-                # アップロードされたPDFを処理
-                uploaded_file = st.file_uploader("PDFをアップロード", type=["pdf"])
-                if uploaded_file:
-                    # Google Drive にPDFをアップロード
-                    temp_file_path, file_link = upload_to_google_drive(drive, uploaded_file)
-
-                    if file_link:  # アップロードに成功した場合
-
-                        #データベースへの格納処理
-                        store_metadata_in_db(DB_FILE, metadata, file_link, uploaded_file, drive)
-
-                    else:
-                        st.error("DOI could not be found.")
-                        return  # 最後に処理を終了させる
-
+        uploaded_file = st.file_uploader("PDFをアップロード", type=["pdf"])
+        if doi_input and uploaded_file:
+            st.success(f"DOI entered: {doi_input}")
+            process_doi_input(doi_input, uploaded_file)
 
 
 if __name__ == "__main__":
