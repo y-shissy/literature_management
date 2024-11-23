@@ -541,21 +541,22 @@ def translate_and_summarize(text):
 
 # Google Drive へのアップロード関数
 def upload_to_google_drive(drive, uploaded_file):
-    temp_file_path = None  # スコープ外アクセスを防ぐため、初期化
     try:
-        # 一時ディレクトリにファイルを保存
+        # 一時ディレクトリを作成し、ファイルを保存
         with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as temp_file:
-            temp_file.write(uploaded_file.read())  # ファイル内容を保存
+            # アップロードされたファイルの内容をバイナリモードで読み書き
+            temp_file.write(uploaded_file.read())  # uploaded_fileがBytesIOかストリームであることを想定
             temp_file_path = temp_file.name  # 一時ファイルのパスを取得
 
         # Google Drive にアップロードするファイルメタデータを設定
-        file_name = uploaded_file.name if hasattr(uploaded_file, 'name') else "uploaded_file.pdf"
-        gfile = drive.CreateFile({"title": file_name})  # ファイル名がない場合にデフォルト名を設定
+        gfile = drive.CreateFile({"title": uploaded_file.name})  # uploaded_file.name を使用
 
         # 一時ファイルを Google Drive にアップロード
         gfile.SetContentFile(temp_file_path)
+
+        # アップロードのトライ
         gfile.Upload()
-        st.success(f"{file_name} をGoogle Driveにアップロードしました。")
+        st.success(f"{uploaded_file.name} をGoogle Driveにアップロードしました。")
 
         # アップロードしたファイルのリンクを返す
         return temp_file_path, f"https://drive.google.com/uc?id={gfile['id']}"
@@ -563,11 +564,3 @@ def upload_to_google_drive(drive, uploaded_file):
     except Exception as e:
         st.error(f"アップロード失敗: {e}")
         return None, None
-
-    finally:
-        # 一時ファイルを削除。ただし、temp_file_path が None または削除済みの場合を考慮
-        if temp_file_path and os.path.exists(temp_file_path):
-            try:
-                os.remove(temp_file_path)
-            except Exception as cleanup_error:
-                st.warning(f"一時ファイルの削除に失敗しました: {cleanup_error}")
