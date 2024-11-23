@@ -538,33 +538,31 @@ def file_exists_on_drive(drive, file_name):
     file_list = drive.ListFile({'q': query}).GetList()
     return len(file_list) > 0
 
-
-# Google Drive へのアップロード関数
 def upload_to_google_drive(drive, uploaded_file):
     try:
+        # ファイルが既に存在するか確認
         if file_exists_on_drive(drive, uploaded_file.name):
             st.warning(f"ファイル {uploaded_file.name} はすでに Google Drive に存在します。")
-            return None, None
+            # ファイル情報を取得してリンクを返す
+            file_list = drive.ListFile({'q': f"title = '{uploaded_file.name}'"}).GetList()
+            file_id = file_list[0]['id']
+            file_link = f"https://drive.google.com/uc?id={file_id}"
+            return None, file_link  # ファイルアップロードをスキップしてリンクを返す
 
-        # 一時ディレクトリを作成し、ファイルを保存
+        # 一時ディレクトリを作成してファイルを保存
         with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as temp_file:
-            # アップロードされたファイルの内容をバイナリモードで読み書き
-            temp_file.write(uploaded_file.read())  # uploaded_fileがBytesIOかストリームであることを想定
-            temp_file_path = temp_file.name  # 一時ファイルのパスを取得
+            temp_file.write(uploaded_file.read())  # uploaded_fileがBytesIOであると想定
+            temp_file_path = temp_file.name
 
-        # Google Drive にアップロードするファイルメタデータを設定
-        gfile = drive.CreateFile({"title": uploaded_file.name})  # uploaded_file.name を使用
-
-        # 一時ファイルを Google Drive にアップロード
+        # Google Drive にファイルをアップロード
+        gfile = drive.CreateFile({"title": uploaded_file.name})
         gfile.SetContentFile(temp_file_path)
-
-        # アップロードのトライ
         gfile.Upload()
-        st.success(f"{uploaded_file.name} をGoogle Driveにアップロードしました。")
 
-        # アップロードしたファイルのリンクを返す
+        st.success(f"{uploaded_file.name} をGoogle Driveにアップロードしました。")
         return temp_file_path, f"https://drive.google.com/uc?id={gfile['id']}"
 
     except Exception as e:
         st.error(f"アップロード失敗: {e}")
         return None, None
+

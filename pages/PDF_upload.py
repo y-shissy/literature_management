@@ -39,7 +39,6 @@ st.set_page_config(
 )
 #Google drive
 drive=st.session_state['drive']
-# メイン関数
 def main():
     st.markdown("### PDFアップロード")
     DB_FILE = "literature_database.db"
@@ -60,41 +59,52 @@ def main():
                 st.warning("This DOI is already in the database.")
                 return
 
+            # Google Drive に PDF をアップロード
+            temp_file_path, file_link = upload_to_google_drive(drive, uploaded_file)
+            if not file_link:
+                st.warning(f"ファイル {uploaded_file.name} はすでに Google Drive に存在します。")
+                # Google Drive で既存ファイルのリンクを取得
+                file_list = drive.ListFile({'q': f"title = '{uploaded_file.name}'"}).GetList()
+                if file_list:
+                    file_id = file_list[0]['id']
+                    file_link = f"https://drive.google.com/uc?id={file_id}"
+                else:
+                    st.error("Failed to retrieve file link from Google Drive.")
+                    return
+
             # メタデータ取得
             metadata = display_metadata(doi_input)
             if not metadata:
                 st.error("Metadata could not be retrieved.")
                 return
 
-            # Google Drive に PDF をアップロード
-            temp_file_path, file_link = upload_to_google_drive(drive, uploaded_file)
-            if not file_link:
-                st.error("File upload failed.")
-                return
-
             # メタデータをデータベースに格納
             store_metadata_in_db(DB_FILE, metadata, file_link, uploaded_file, drive)
+        except Exception as e:
+            st.error(f"An error occurred while processing DOI: {e}")
         finally:
             session.close()
 
     if option == 'DOI自動判別':
         uploaded_file = st.file_uploader("PDFをアップロード", type=["pdf"])
         if uploaded_file:
-            # DOI を抽出
+            # Google Drive に一時ファイルを保存
             temp_file_path, file_link = upload_to_google_drive(drive, uploaded_file)
-            doi, first_text = process_pdf(temp_file_path)
-            if not doi:
-                # 抽出失敗時にファイル名から検索
-                search_term = os.path.splitext(uploaded_file.name)[0]
-                doi = search_doi_from_filename(search_term)
-                st.write(f"Search term: {search_term}")
-                st.write(f"Searched DOI: {doi}")
 
-            if doi:
-                st.success(f"DOI found: {doi}")
-                process_doi_input(doi, uploaded_file)
+            if temp_file_path:
+                # DOI を抽出
+                doi, first_text = process_pdf(temp_file_path)
+                if not doi:
+                    search_term = os.path.splitext(uploaded_file.name)[0]
+                    doi = search_doi_from_filename(search_term)
+
+                if doi:
+                    st.success(f"DOI found: {doi}")
+                    process_doi_input(doi, uploaded_file)
+                else:
+                    st.error("DOI could not be found.")
             else:
-                st.error("DOI could not be found.")
+                st.error("File upload failed. Please try again.")
 
     elif option == 'DOI手動入力':
         doi_input = st.text_input("DOIを入力してください")
@@ -102,6 +112,7 @@ def main():
         if doi_input and uploaded_file:
             st.success(f"DOI entered: {doi_input}")
             process_doi_input(doi_input, uploaded_file)
+
 
 
 if __name__ == "__main__":
