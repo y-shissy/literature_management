@@ -298,18 +298,18 @@ def main():
         #             st.write(f"PDFリンク: [ここをクリック]({file_link})")
         #             st.write(f"データベースはGoogle Driveにアップロードされました。リンク: [ここをクリック]({db_link})")
 
-        # データベースから保存済みPDFを表示
-        try:
-            conn = sqlite3.connect(DB_FILE)
-            c = conn.cursor()
-            c.execute("SELECT title, link FROM pdf_data")
-            rows = c.fetchall()
-            st.write("保存済みPDF一覧:")
-            for row in rows:
-                st.write(f"- {row[0]}: [リンク]({row[1]})")
-            conn.close()
-        except Exception as e:
-            st.error(f"データベースの取得に失敗しました: {e}")
+        # # データベースから保存済みPDFを表示
+        # try:
+        #     conn = sqlite3.connect(DB_FILE)
+        #     c = conn.cursor()
+        #     c.execute("SELECT title, link FROM pdf_data")
+        #     rows = c.fetchall()
+        #     st.write("保存済みPDF一覧:")
+        #     for row in rows:
+        #         st.write(f"- {row[0]}: [リンク]({row[1]})")
+        #     conn.close()
+        # except Exception as e:
+        #     st.error(f"データベースの取得に失敗しました: {e}")
             
     with tabs[2]:
         st.write("under construction")
