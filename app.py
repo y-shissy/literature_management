@@ -4,27 +4,43 @@ from pydrive.drive import GoogleDrive
 from git import Repo
 import sqlite3
 import os
+import json
+
+# SQLiteデータベース名
+DB_FILE = "data.db"
 
 # Google Drive 認証設定
 def google_drive_auth():
+    # Streamlit Secretsから認証情報を読み込む
+    secrets = st.secrets["gdrive"]
+    client_config = {
+        "web": {
+            "client_id": secrets["client_id"],
+            "project_id": secrets["project_id"],
+            "auth_uri": secrets["auth_uri"],
+            "token_uri": secrets["token_uri"],
+            "auth_provider_x509_cert_url": secrets["auth_provider_x509_cert_url"],
+            "client_secret": secrets["client_secret"],
+            "redirect_uris": secrets["redirect_uris"],
+        }
+    }
+    # `client_secrets.json`を一時的に作成
+    with open("client_secrets.json", "w") as f:
+        json.dump(client_config, f)
+
+    # PyDriveの認証
     gauth = GoogleAuth()
-    gauth.LoadCredentialsFile("mycreds.txt")
-    if not gauth.credentials:
-        gauth.LocalWebserverAuth()
-    else:
-        gauth.Refresh()
-    drive = GoogleDrive(gauth)
-    return drive
+    gauth.LoadClientConfigFile("client_secrets.json")
+    gauth.LocalWebserverAuth()  # 認証フロー開始
+    gauth.SaveCredentialsFile("mycreds.txt")  # 認証情報を保存
+    return GoogleDrive(gauth)
 
 # Google Drive にPDFをアップロード
 def upload_to_google_drive(drive, file):
-    gfile = drive.CreateFile({'title': file.name})
+    gfile = drive.CreateFile({"title": file.name})
     gfile.SetContentFile(file.name)
     gfile.Upload()
     return f"https://drive.google.com/uc?id={gfile['id']}"
-
-# SQLiteデータベースの管理
-DB_FILE = "data.db"
 
 # GitHubリポジトリからSQLiteデータベースを取得
 def fetch_db_from_github():
@@ -56,7 +72,11 @@ def push_db_to_github():
 st.title("PDF管理＆SQLiteデータベース管理アプリ")
 
 # Google Drive 認証
-drive = google_drive_auth()
+try:
+    drive = google_drive_auth()
+except Exception as e:
+    st.error(f"Google Drive認証に失敗しました: {e}")
+    st.stop()
 
 # アップロードされたPDFを処理
 uploaded_file = st.file_uploader("PDFをアップロード", type=["pdf"])
@@ -79,18 +99,23 @@ if uploaded_file:
     conn.close()
 
     # データベースをGitHubにプッシュ
-    push_db_to_github()
-
-    st.success("PDFをアップロードし、データベースを更新しました！")
-    st.write(f"リンク: [ここをクリック]({file_link})")
+    try:
+        push_db_to_github()
+        st.success("PDFをアップロードし、データベースを更新しました！")
+        st.write(f"リンク: [ここをクリック]({file_link})")
+    except Exception as e:
+        st.error(f"データベースのGitHub同期に失敗しました: {e}")
 
 # データベースから保存済みPDFを表示
-fetch_db_from_github()
-conn = sqlite3.connect(DB_FILE)
-c = conn.cursor()
-c.execute("SELECT title, link FROM pdf_data")
-rows = c.fetchall()
-st.write("保存済みPDF一覧:")
-for row in rows:
-    st.write(f"- {row[0]}: [リンク]({row[1]})")
-conn.close()
+try:
+    fetch_db_from_github()
+    conn = sqlite3.connect(DB_FILE)
+    c = conn.cursor()
+    c.execute("SELECT title, link FROM pdf_data")
+    rows = c.fetchall()
+    st.write("保存済みPDF一覧:")
+    for row in rows:
+        st.write(f"- {row[0]}: [リンク]({row[1]})")
+    conn.close()
+except Exception as e:
+    st.error(f"データベースの取得に失敗しました: {e}")
