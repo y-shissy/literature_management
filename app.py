@@ -133,17 +133,17 @@ def main():
     else:
         st.success("すでにGoogle Driveに認証されています。")
 
-    # Google Driveからデータベースをダウンロード，データが無い場合は初期化
-    download_db_from_google_drive(drive)
-
-    # データベース読み込み
-    read_db()
 
     # タブ別表示
     items=["データベース表示","文献追加","ナレッジ検索","設定"]
     tabs=st.tabs(items)
     with tabs[0]:
 
+        # Google Driveからデータベースをダウンロード，データが無い場合は初期化
+        download_db_from_google_drive(drive)
+        # データベース読み込み
+        read_db()
+        
         # カテゴリカラムのユニークな値を抽出
         unique_category = st.session_state["df"]["カテゴリ"].unique()
         # journalカラムのユニークな値を抽出
