@@ -12,3 +12,4 @@ tiktoken==0.7.0
 pdf2image==1.17.0
 pytesseract==0.3.13
 urllib3==2.2.3
+PyMuPDF==1.24.1
