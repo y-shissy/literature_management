@@ -71,7 +71,7 @@ def main():
                     #メタデータ表示
                     metadata=display_metadata(doi)
                     #データベースへの格納処理
-                    store_metadata_in_db(DB_FILE,metadata,file_link,uploaded_file)
+                    store_metadata_in_db(DB_FILE,metadata,file_link,uploaded_file,drive)
                     #再読み込み
                     st.cache_data.clear()  # キャッシュをクリア
                     df = pd.read_sql("SELECT * FROM metadata", conn)  # データ再読み込み
