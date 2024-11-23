@@ -4,35 +4,21 @@ from pydrive.drive import GoogleDrive
 from git import Repo
 import sqlite3
 import os
+import tempfile
 import json
 
 # SQLiteデータベース名
 DB_FILE = "data.db"
 
 # Google Drive 認証設定
-def google_drive_auth():
-    # Streamlit Secretsから認証情報を読み込む
-    secrets = st.secrets["gdrive"]
-    client_config = {
-        "web": {
-            "client_id": secrets["client_id"],
-            "project_id": secrets["project_id"],
-            "auth_uri": secrets["auth_uri"],
-            "token_uri": secrets["token_uri"],
-            "auth_provider_x509_cert_url": secrets["auth_provider_x509_cert_url"],
-            "client_secret": secrets["client_secret"],
-            "redirect_uris": secrets["redirect_uris"],
-        }
-    }
-    # `client_secrets.json`を一時的に作成
-    with open("client_secrets.json", "w") as f:
-        json.dump(client_config, f)
-
-    # PyDriveの認証
+def google_drive_auth(creds_file_path):
     gauth = GoogleAuth()
-    gauth.LoadClientConfigFile("client_secrets.json")
-    gauth.LocalWebserverAuth()  # 認証フロー開始
-    gauth.SaveCredentialsFile("mycreds.txt")  # 認証情報を保存
+    gauth.LoadCredentialsFile(creds_file_path)
+    # 認証トークンが期限切れの場合は更新
+    if gauth.access_token_expired:
+        gauth.Refresh()
+    else:
+        gauth.Authorize()
     return GoogleDrive(gauth)
 
 # Google Drive にPDFをアップロード
@@ -71,9 +57,20 @@ def push_db_to_github():
 # Streamlitアプリの構成
 st.title("PDF管理＆SQLiteデータベース管理アプリ")
 
+# `mycreds.txt`ファイルをアップロード
+uploaded_creds_file = st.file_uploader("認証情報ファイル (`mycreds.txt`) をアップロード", type=["txt"])
+if not uploaded_creds_file:
+    st.warning("Google Driveの認証には`mycreds.txt`ファイルをアップロードしてください。")
+    st.stop()
+
+# 一時ファイルとして`mycreds.txt`を保存
+with tempfile.NamedTemporaryFile(delete=False, suffix=".txt") as temp_creds_file:
+    temp_creds_file.write(uploaded_creds_file.read())
+    temp_creds_path = temp_creds_file.name
+
 # Google Drive 認証
 try:
-    drive = google_drive_auth()
+    drive = google_drive_auth(temp_creds_path)
 except Exception as e:
     st.error(f"Google Drive認証に失敗しました: {e}")
     st.stop()
