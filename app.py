@@ -42,6 +42,12 @@ def upload_to_google_drive(drive, file):
     gfile.SetContentFile(temp_file_path)
     gfile.Upload()
 
+    # アクセス権を変更：リンクを持つ誰でも閲覧可能にする
+    gfile.InsertPermission({
+        'type': 'anyone',
+        'role': 'reader',
+    })
+
     os.remove(temp_file_path)
     return f"https://drive.google.com/uc?id={gfile['id']}"
 
@@ -71,6 +77,12 @@ def upload_db_to_google_drive(drive):
     gfile.SetContentFile(temp_db_path)
     gfile.Upload()
 
+    # アクセス権を変更：リンクを持つ誰でも閲覧可能にする
+    gfile.InsertPermission({
+        'type': 'anyone',
+        'role': 'reader',
+    })
+
     os.remove(temp_db_path)  # 一時ファイルを削除
 
     return f"https://drive.google.com/uc?id={gfile['id']}"
@@ -99,7 +111,7 @@ except Exception as e:
 # Google Driveからデータベースをダウンロード
 download_db_from_google_drive(drive)
 
-# データベースの初期化ここで行う
+# データベースの初期化
 initialize_db()
 
 # アップロードされたPDFを処理
