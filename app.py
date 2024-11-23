@@ -1,7 +1,6 @@
 import streamlit as st
 from pydrive.auth import GoogleAuth
 from pydrive.drive import GoogleDrive
-from git import Repo
 import sqlite3
 import os
 import tempfile
@@ -22,52 +21,44 @@ def google_drive_auth(creds_file_path):
 
 # Google Drive にPDFをアップロード
 def upload_to_google_drive(drive, file):
-    # 一時ファイルに保存
     temp_file_path = f"/tmp/{file.name}"
     with open(temp_file_path, "wb") as temp_file:
         temp_file.write(file.read())
 
-    # Google Driveにアップロード
     gfile = drive.CreateFile({"title": file.name})
     gfile.SetContentFile(temp_file_path)
     gfile.Upload()
 
-    # アップロード後、一時ファイルを削除
     os.remove(temp_file_path)
 
     return f"https://drive.google.com/uc?id={gfile['id']}"
 
-# GitHubリポジトリからSQLiteデータベースを取得
-def fetch_db_from_github():
-    repo_url = f"https://{st.secrets.github.token}@github.com/{st.secrets.github.repo}.git"
-    local_dir = "temp_repo"
-    if os.path.exists(local_dir):
-        repo = Repo(local_dir)
-        repo.remote().pull()
-    else:
-        repo = Repo.clone_from(repo_url, local_dir)
-    db_path = os.path.join(local_dir, DB_FILE)
-    if os.path.exists(db_path):
-        os.rename(db_path, DB_FILE)
+# Google DriveにSQLiteデータベースをアップロード
+def upload_db_to_google_drive(drive):
+    temp_db_path = f"/tmp/{DB_FILE}"
+    os.rename(DB_FILE, temp_db_path)  # 一時ファイルに移動
 
-# SQLiteデータベースをGitHubリポジトリにプッシュ
-def push_db_to_github(user_name, user_email):
-    repo_url = f"https://{st.secrets.github.token}@github.com/{st.secrets.github.repo}.git"
-    local_dir = "temp_repo"
-    if not os.path.exists(local_dir):
-        repo = Repo.clone_from(repo_url, local_dir)
-    else:
-        repo = Repo(local_dir)
+    gfile = drive.CreateFile({"title": DB_FILE})
+    gfile.SetContentFile(temp_db_path)
+    gfile.Upload()
 
-    # ユーザ名とメールアドレスを設定
-    repo.config_writer().set_value("user", "name", user_name).release()
-    repo.config_writer().set_value("user", "email", user_email).release()
+    os.remove(temp_db_path)  # アップロード後、一時ファイルを削除
 
-    db_path = os.path.join(local_dir, DB_FILE)
-    os.rename(DB_FILE, db_path)
-    repo.index.add([DB_FILE])
-    repo.index.commit("Update database")  # 自己署名のコミット
-    repo.remote().push()
+    return f"https://drive.google.com/uc?id={gfile['id']}"
+
+# Google DriveにPDFをアップロード
+def upload_to_google_drive(drive, file):
+    temp_file_path = f"/tmp/{file.name}"
+    with open(temp_file_path, "wb") as temp_file:
+        temp_file.write(file.read())
+
+    gfile = drive.CreateFile({"title": file.name})
+    gfile.SetContentFile(temp_file_path)
+    gfile.Upload()
+
+    os.remove(temp_file_path)
+
+    return f"https://drive.google.com/uc?id={gfile['id']}"
 
 # Streamlitアプリの構成
 st.title("PDF管理＆SQLiteデータベース管理アプリ")
@@ -97,7 +88,7 @@ user_email = st.text_input("GitHubへのコミット用のメールアドレス�
 # アップロードされたPDFを処理
 uploaded_file = st.file_uploader("PDFをアップロード", type=["pdf"])
 if uploaded_file:
-    # Google Drive にアップロード
+    # Google Drive にPDFをアップロード
     file_link = upload_to_google_drive(drive, uploaded_file)
 
     # SQLiteデータベースに記録
@@ -114,17 +105,17 @@ if uploaded_file:
     conn.commit()
     conn.close()
 
-    # データベースをGitHubにプッシュ
+    # データベースをGoogle Driveにアップロード
     try:
-        push_db_to_github(user_name, user_email)
+        db_link = upload_db_to_google_drive(drive)
         st.success("PDFをアップロードし、データベースを更新しました！")
         st.write(f"リンク: [ここをクリック]({file_link})")
+        st.write(f"データベースはGoogle Driveにアップロードされました。リンク: [ここをクリック]({db_link})")
     except Exception as e:
-        st.error(f"データベースのGitHub同期に失敗しました: {e}")
+        st.error(f"データベースのGoogle Drive同期に失敗しました: {e}")
 
 # データベースから保存済みPDFを表示
 try:
-    fetch_db_from_github()
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
     c.execute("SELECT title, link FROM pdf_data")
