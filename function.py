@@ -539,9 +539,11 @@ def translate_and_summarize(text):
 
     return summary, keyword_res,category_res
 
-#ファイルの重複確認
+# ファイルの重複確認
 def file_exists_on_drive(drive, file_name):
-    file_list = drive.ListFile({'q': f"title = '{file_name}'"}).GetList()
+    # ゴミ箱内のファイルを除外
+    query = f"title = '{file_name}' and trashed = false"
+    file_list = drive.ListFile({'q': query}).GetList()
     return len(file_list) > 0
 
 
