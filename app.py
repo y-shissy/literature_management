@@ -47,11 +47,12 @@ def upload_to_google_drive(drive, file):
         st.error(f"アップロード失敗: {e}")
         return None
 
-    # アクセス権を変更：リンクを持つ誰でも閲覧可能にする
+    # アクセス権を変更：自分のみアクセス可能にする
     try:
         gfile.InsertPermission({
-            'type': 'anyone',
-            'role': 'reader',
+            'type': 'user',
+            'role': 'owner',  # 'owner' と設定して自分のみのアクセス権を保持
+            'value': gauth.GetEmail()  # 認証ユーザーのメールアドレスを指定
         })
         st.success(f"{file.name} のアクセス権を変更しました。")
     except Exception as e:
@@ -70,7 +71,7 @@ def download_db_from_google_drive(drive):
     else:
         st.error(f"{DB_FILE} がGoogle Drive内に見つかりません。新規作成します。")
         initialize_db()
-        
+
 # Google DriveにSQLiteデータベースをアップロード
 def upload_db_to_google_drive(drive):
     # Google Drive上のファイルを検索
@@ -91,11 +92,12 @@ def upload_db_to_google_drive(drive):
         st.error(f"データベースアップロードに失敗しました: {e}")
         return None
 
-    # アクセス権を変更：リンクを持つ誰でも閲覧可能にする
+    # アクセス権を変更：自分のみアクセス可能にする
     try:
         gfile.InsertPermission({
-            'type': 'anyone',
-            'role': 'reader',
+            'type': 'user',
+            'role': 'owner',
+            'value': gauth.GetEmail(),  # 認証ユーザーのメールアドレスを指定
         })
         st.success(f"{DB_FILE} のアクセス権を変更しました。")
     except Exception as e:
