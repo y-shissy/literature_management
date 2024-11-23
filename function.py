@@ -516,7 +516,7 @@ def upload_to_google_drive(drive, uploaded_file):
         # 一時ディレクトリを作成し、ファイルを保存
         with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as temp_file:
             # アップロードされたファイルの内容をバイナリモードで読み書き
-            temp_file.write(uploaded_file.read())  # .getvalue()ではなく.read()を使用
+            temp_file.write(uploaded_file.read())
             temp_file_path = temp_file.name  # 一時ファイルのパスを取得
 
         # Google Drive にアップロードするファイルメタデータを設定
@@ -527,14 +527,9 @@ def upload_to_google_drive(drive, uploaded_file):
         gfile.Upload()
         st.success(f"{uploaded_file.name} をGoogle Driveにアップロードしました。")
 
-        # 一時ファイルを削除
-        os.remove(temp_file_path)
-
         # アップロードしたファイルのリンクを返す
-        return f"https://drive.google.com/uc?id={gfile['id']}"
+        return temp_file_path, f"https://drive.google.com/uc?id={gfile['id']}"
 
     except Exception as e:
         st.error(f"アップロード失敗: {e}")
-        if os.path.exists(temp_file_path):
-            os.remove(temp_file_path)  # 一時ファイルを削除
-        return None
+        return None, None

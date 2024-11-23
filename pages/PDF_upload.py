@@ -53,11 +53,11 @@ def main():
         uploaded_file = st.file_uploader("PDFをアップロード", type=["pdf"])
         if uploaded_file:
             # Google Drive にPDFをアップロード
-            file_link = upload_to_google_drive(drive, uploaded_file)
+            temp_file_path, file_link = upload_to_google_drive(drive, uploaded_file)
 
-            if file_link:  # アップロードに成功した場合
+            if temp_file_path:  # アップロードに成功した場合
                 # DOI抽出処理
-                doi, first_text = process_pdf(file_link)  # パスではなくリンクを渡すべきか？
+                doi, first_text = process_pdf(temp_file_path)  # 一時ファイルパスを渡す
 
                 if not doi:
                     # If DOI extraction fails, search using filename
