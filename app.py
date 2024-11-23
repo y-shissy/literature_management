@@ -40,7 +40,12 @@ def upload_to_google_drive(drive, file):
 
     gfile = drive.CreateFile({"title": file.name})
     gfile.SetContentFile(temp_file_path)
-    gfile.Upload()
+    try:
+        gfile.Upload()
+        st.success(f"{file.name} をGoogle Driveにアップロードしました。")
+    except Exception as e:
+        st.error(f"アップロード失敗: {e}")
+        return None
 
     # アクセス権を変更：リンクを持つ誰でも閲覧可能にする
     try:
@@ -48,6 +53,7 @@ def upload_to_google_drive(drive, file):
             'type': 'anyone',
             'role': 'reader',
         })
+        st.success(f"{file.name} のアクセス権を変更しました。")
     except Exception as e:
         st.error(f"権限設定に失敗しました: {e}")
 
@@ -78,7 +84,12 @@ def upload_db_to_google_drive(drive):
     shutil.move(DB_FILE, temp_db_path)  # 一時ファイルに移動
 
     gfile.SetContentFile(temp_db_path)
-    gfile.Upload()
+    try:
+        gfile.Upload()
+        st.success(f"{DB_FILE} をGoogle Driveにアップロードしました。")
+    except Exception as e:
+        st.error(f"データベースアップロードに失敗しました: {e}")
+        return None
 
     # アクセス権を変更：リンクを持つ誰でも閲覧可能にする
     try:
@@ -86,6 +97,7 @@ def upload_db_to_google_drive(drive):
             'type': 'anyone',
             'role': 'reader',
         })
+        st.success(f"{DB_FILE} のアクセス権を変更しました。")
     except Exception as e:
         st.error(f"権限設定に失敗しました: {e}")
 
@@ -126,26 +138,25 @@ if uploaded_file:
     # Google Drive にPDFをアップロード
     file_link = upload_to_google_drive(drive, uploaded_file)
 
-    # SQLiteデータベースに記録
-    conn = sqlite3.connect(DB_FILE)
-    c = conn.cursor()
-    try:
-        c.execute("INSERT INTO pdf_data (title, link) VALUES (?, ?)", (uploaded_file.name, file_link))
-        conn.commit()
-        st.success("PDFの情報がデータベースに追加されました！")
-    except Exception as e:
-        st.error(f"データベースへの追加に失敗しました: {e}")
-    finally:
-        conn.close()
+    if file_link:  # アップロードに成功した場合
+        # SQLiteデータベースに記録
+        conn = sqlite3.connect(DB_FILE)
+        c = conn.cursor()
+        try:
+            c.execute("INSERT INTO pdf_data (title, link) VALUES (?, ?)", (uploaded_file.name, file_link))
+            conn.commit()
+            st.success("PDFの情報がデータベースに追加されました！")
+        except Exception as e:
+            st.error(f"データベースへの追加に失敗しました: {e}")
+        finally:
+            conn.close()
 
-    # データベースをGoogle Driveにアップロード
-    try:
+        # データベースをGoogle Driveにアップロード
         db_link = upload_db_to_google_drive(drive)
-        st.success("PDFをアップロードし、データベースを更新しました！")
-        st.write(f"PDFリンク: [ここをクリック]({file_link})")
-        st.write(f"データベースはGoogle Driveにアップロードされました。リンク: [ここをクリック]({db_link})")
-    except Exception as e:
-        st.error(f"データベースのGoogle Drive同期に失敗しました: {e}")
+        if db_link:  # データベースアップロードに成功した場合
+            st.success("データベースを更新しました！")
+            st.write(f"PDFリンク: [ここをクリック]({file_link})")
+            st.write(f"データベースはGoogle Driveにアップロードされました。リンク: [ここをクリック]({db_link})")
 
 # データベースから保存済みPDFを表示
 try:
