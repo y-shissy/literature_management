@@ -565,6 +565,53 @@ def upload_to_google_drive(drive, file_path, filename):
         st.error(f"アップロード失敗: {e}")
         return None
 
+# PDFアップロード処理を共通化
+def handle_pdf_upload(uploaded_file, drive, db_file, auto_doi=False, manual_doi=None):
+    try:
+        # 一時ファイル作成
+        temp_file_path, temp_file_link = create_temp_file(uploaded_file)
+        if not temp_file_path:
+            st.error("一時ファイルの作成に失敗しました。")
+            return
+
+        # DOIの取得
+        doi = None
+        if auto_doi:
+            doi, first_text = process_pdf(temp_file_path)
+            if not doi:
+                search_term = os.path.splitext(uploaded_file.name)[0]
+                doi = search_doi_from_filename(search_term)
+        elif manual_doi:
+            doi = manual_doi
+
+        if not doi:
+            st.error("DOIが見つかりませんでした。")
+            return
+
+        # メタデータの取得
+        metadata = display_metadata(doi)
+        if not metadata:
+            st.error("DOIに関連するメタデータが見つかりませんでした。")
+            return
+
+        # Google DriveにPDFをアップロード
+        file_link = upload_to_google_drive(drive, temp_file_path, uploaded_file.name)
+        if not file_link:
+            st.error("Google Driveへのアップロードに失敗しました。")
+            return
+
+        # データベースへの格納
+        db_success = store_metadata_in_db(db_file, metadata, file_link, uploaded_file, drive)
+        if db_success:
+            st.success("New record added to the database.")
+            st.success("ファイルがGoogle Driveに正常にアップロードされました。")
+        else:
+            st.error("データベースへの格納に失敗しました。")
+
+    except Exception as e:
+        st.error(f"エラーが発生しました: {e}")
+
+
 # 一時ファイルを作成する関数
 def create_temp_file(uploaded_file):
     try:
