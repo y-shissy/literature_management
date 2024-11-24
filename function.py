@@ -40,37 +40,28 @@ def extract_text_from_pdf_pages(pdf_path):
 
 # OCR機能を使いPDFからテキスト抽出（ページごとに実行，日本語英語対応）
 def pdf_to_text_with_ocr_per_page_multi_lang(pdf_path):
-    #debug
-    st.write(pdf_path)
     #PDFを画像に変換
     images=convert_from_path(pdf_path)
     page_texts=[]
     for image in images:
         text=pytesseract.image_to_string(image, lang='jpn+eng')
-        #debug
-        st.write(text)
         page_texts.append(text)
     return page_texts
 
 # PDFから全ページのテキスト抽出(llama_index + pytesseract)
 def extract_text_from_pdf(pdf_path):
-    #ドキュメントを開く
+    # ドキュメントを開く
     reader = SimpleDirectoryReader(input_files=[pdf_path])
     documents = reader.load_data()
+
+    # OCRキャッシュの初期化
     ocr_cache = {}
 
-    # ドキュメントが空の場合、OCRを実行するフラグ
-    perform_ocr = True
+    # documentsが空の場合はOCRを実行するフラグ
+    perform_ocr = not documents or all(doc.text.strip() == "" for doc in documents)
 
-    # llama_indexで抽出したドキュメントを確認
-    for doc in documents:
-        if doc.text.strip() != "":
-            perform_ocr = False  # テキストが見つかればOCRを実施する必要はない
-            break
-    #debug
-    st.write(documents)
     # documentsが空または全てのdoc.textが空の場合はOCRを適用
-    if perform_ocr or not documents:
+    if perform_ocr:
         # ファイルがキャッシュにない場合，OCRを実行しページごとに結果を保存
         if pdf_path not in ocr_cache:
             ocr_cache[pdf_path] = pdf_to_text_with_ocr_per_page_multi_lang(pdf_path)
@@ -80,9 +71,11 @@ def extract_text_from_pdf(pdf_path):
             # documentsリストのインデックスを調整（1ページ目が0インデックス）
             if page_number < len(documents):
                 documents[page_number].text = text  # ページ番号に対応するOCR結果を取得
+            else:
+                # documentsが不足している場合には新しいドキュメントを作成
+                new_doc = Document(text=text)  # Documentクラスのインスタンスを生成
+                documents.append(new_doc)  # 新しいドキュメントを追加
 
-        #debug
-        st.write(documents)
     return documents
 
 #　抽出したテキストからDOI抽出

@@ -39,6 +39,11 @@ DB_FILE = "literature_database.db"
 # キーワード，カテゴリ格納ファイル
 keywords_categories_file= 'keywords_categories.csv'
 
+# Docmunetクラス設定
+class Document:
+    def __init__(self, text=""):
+        self.text = text
+
 # Google Drive 認証設定
 def google_drive_auth(creds_file_path):
     gauth = GoogleAuth()
