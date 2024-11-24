@@ -247,14 +247,15 @@ def main():
                 st.experimental_rerun()
 
         st.markdown('#### :open_file_folder:ファイル表示')
-        # ファイル表示のチェックボックス
+
         file_view = st.checkbox("PDFファイルを表示する")
+
         if file_view:
             # id-タイトルの形式で選択肢を作成
             options = filtered_df.apply(lambda row: f"{row['id']}-{row['タイトル']}", axis=1)
 
             # レコード選択のためのセレクトボックス（初期選択なし）
-            selected_option = st.selectbox("PDFファイル選択", options,index=0)
+            selected_option = st.selectbox("PDFファイル選択", options, index=None)  # 初期選択なし
 
             # 選択されたレコードのファイルリンクを取得
             if selected_option:
@@ -264,20 +265,38 @@ def main():
                 # Google DriveからファイルIDを抽出
                 if selected_file_path:
                     file_id = selected_file_path.split("id=")[-1]
+
                     # PDFファイルをダウンロード
                     pdf_file_path = download_file(st.session_state['drive'], file_id)
 
                     # PDFを表示
+                    pdf_viewer(pdf_file_path)  # streamlit_pdf_viewerでPDFを表示
+
+                    # 論文情報の表示
+                    title = filtered_df.loc[selected_index, 'タイトル']
+                    authors = filtered_df.loc[selected_index, '著者']
+                    journal = filtered_df.loc[selected_index, 'ジャーナル']
+                    year = filtered_df.loc[selected_index, '年']
+                    category = filtered_df.loc[selected_index, 'カテゴリ']
+                    keywords = filtered_df.loc[selected_index, 'キーワード']
+                    abstract = filtered_df.loc[selected_index, '要約']
+                    notes = filtered_df.loc[selected_index, 'メモ']
+
+                    st.markdown(f"### {title}")
+                    st.markdown(f"**著者**: {authors}")
+                    st.markdown(f"**ジャーナル**: {journal}")
+                    st.markdown(f"**年**: {year}")
+                    st.markdown(f"**カテゴリ**: {category}")
+                    st.markdown(f"**キーワード**: {keywords}")
+                    st.markdown(f"**要約**: {abstract}")
+                    st.markdown(f"**メモ**: {notes}")
+
+                    # PDFをダウンロードするボタン
+                    download_file_name = f"{title}.pdf"  # タイトルに.pdfを追加
                     with open(pdf_file_path, "rb") as f:
-                        pdf_data = f.read()  # PDFデータをバイナリで読み込む
-                        b64 = base64.b64encode(pdf_data).decode('utf-8')  # base64エンコード
-                        href = f'data:application/pdf;base64,{b64}'
+                        pdf_data = f.read()
+                        st.download_button("PDFをダウンロード", pdf_data, download_file_name, mime='application/pdf')
 
-                        # PDFをダウンロードするボタン
-                        st.download_button("PDFをダウンロード", pdf_data, file_id, mime='application/pdf')
-
-                        # PDFを表示
-                        pdf_viewer(pdf_file_path)  # streamlit_pdf_viewerでPDFを表示
     with tabs[1]:
         st.markdown("### PDFアップロード・AI自動要約")
         if st.button("PDF Uploader with AI"):
