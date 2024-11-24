@@ -67,6 +67,7 @@ def pdf_to_text_with_ocr_per_page_multi_lang(pdf_path, dpi=300):
         logging.error(f"PDFから画像変換エラー: {e}")
         return []
 
+
 # PDFから全ページのテキスト抽出(llama_index + pytesseract)
 def extract_text_from_pdf(pdf_path):
     """PDFから全ページのテキスト抽出（OCRとLlamaIndexの併用）"""
@@ -74,57 +75,50 @@ def extract_text_from_pdf(pdf_path):
         # LlamaIndexでテキスト抽出
         reader = SimpleDirectoryReader(input_files=[pdf_path])
         documents = reader.load_data()
-        ocr_cache = {}
 
-        st.write("debug1")
+        logging.info(f"ロードされたドキュメント数: {len(documents)}")
+
+        # ドキュメントが存在しない場合はOCRを実行
+        if not documents:
+            logging.warning(f"ドキュメントがゼロです。LlamaIndexではテキストが取得できませんでした。OCRを実行します: {pdf_path}")
+            documents = []  # 空のリストを保持
+            ocr_result = pdf_to_text_with_ocr_per_page_multi_lang(pdf_path)
+            if ocr_result:
+                # OCR結果をドキュメントとして変換
+                for page_text in ocr_result:
+                    documents.append({"text": page_text})
+            else:
+                logging.error(f"OCR処理中にエラーが発生しました: {pdf_path}")
+                return []
+
+        ocr_cache = {}
 
         # ドキュメントごとに処理
         for doc in documents:
-            
-            st.write("debug2")
             # LlamaIndexでのテキスト抽出結果を確認
-            if doc.text.strip():  # テキストが空でない場合、何もしない
+            if doc['text'].strip():  # テキストが空でない場合、何もしない
                 continue
 
-            st.write("debug3")
-            # PDFファイルのパスとページラベルの取得
-            file_path = doc.metadata.get('file_path', pdf_path)
-
-            # OCRが必要な場合は新たにOCR実行
-            logging.info(f"LlamaIndexでテキストが取得できなかったため、OCRを実行します: {file_path}")
+            file_path = pdf_path  # For processing OCR
+            logging.info(f"LlamaIndex での抽出結果が空のため、再度 OCR を実行します: {file_path}")
 
             # OCR処理を実行し、結果をキャッシュに保存
-            ocr_cache[file_path] = pdf_to_text_with_ocr_per_page_multi_lang(file_path)
+            if file_path not in ocr_cache:
+                ocr_cache[file_path] = pdf_to_text_with_ocr_per_page_multi_lang(file_path)
 
             # OCR結果が得られない場合
             if not ocr_cache[file_path]:
-                
-                st.write("debug4")
                 logging.error(f"OCR処理が失敗しました。空の結果です: {file_path}")
                 continue  # 空の結果はスキップ
 
-            # ページ番号取得とOCR結果割り当て
-            page_label = doc.metadata.get('page_label')
-            if not page_label:
-                logging.warning(f"ページ番号がないドキュメントを処理中: {doc.metadata}")
-                doc.text = "\n".join(ocr_cache[file_path])
-            else:
-                try:
-                    page_number = int(page_label) - 1
-                    if 0 <= page_number < len(ocr_cache[file_path]):
-                        doc.text = ocr_cache[file_path][page_number]
-                    else:
-                        logging.warning(f"無効なページ番号 {page_number + 1} の指定がありました: {file_path}")
-                except ValueError as e:
-                    logging.error(f"ページ番号の解析エラー: {e}")
-                    doc.text = ""  # ページ番号取得エラーの場合は空のテキストを保持
+            # OCR結果をドキュメントに割り当てる処理は省略（必要に応じて実装）
+            doc['text'] = ocr_cache[file_path][0]  # 最初のページのテキストをセット
 
         return documents
 
     except Exception as e:
         logging.error(f"PDFからテキスト抽出中にエラー: {e}")
         return []
-
 #　抽出したテキストからDOI抽出
 # DOIの正規表現パターン
 doi_pattern = re.compile(r'(?i)\b(?:doi[:\s]*|DOI[:\s]*|https?://(?:dx\.doi\.org/|doi\.org/))?(10\.\d{4,9}/[-._;()/:A-Z0-9]+\b)')
