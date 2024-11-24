@@ -29,7 +29,6 @@ def main():
     file_data = []
     file_list = drive.ListFile({'q': "mimeType='application/pdf' and trashed=false"}).GetList()
     for file in file_list:
-        # ファイルサイズが存在しない場合に備えてデフォルト値を設定
         file_size_mb = round(int(file.get('fileSize', 0)) / 1000000, 1) if 'fileSize' in file else 0.0
 
         file_info = {
@@ -57,9 +56,10 @@ def main():
             temp_pdf_path = os.path.join(tempfile.gettempdir(), file_title)
             downloaded_file.GetContentFile(temp_pdf_path)
 
-            # PDFファイルを読み込み
-            reader = SimpleDirectoryReader(input_dir=temp_pdf_path)
-            documents = reader.load_data()
+            # PDFファイルを読み込むために適したメソッドを使用
+            # PDFファイルのテキストを取得する。
+            documents = extract_text_from_pdf(temp_pdf_path)  # PDFからのテキスト抽出処理の呼び出し
+
             ocr_cache = {}
             # llama_indexで抽出したドキュメントが空の場合はOCR適用
             for doc in documents:
@@ -73,15 +73,12 @@ def main():
                     ocr_cache[file_path] = pdf_to_text_with_ocr_per_page_multi_lang(file_path)
 
             # ベクトル化して保存
-            # LLM設定
             Settings.llm = OpenAI(model="gpt-4o-mini", temperature=0.1)
-            # Embed Model
             Settings.embed_model = OpenAIEmbedding(
                 model="text-embedding-3-small", embed_batch_size=100
             )
-            # Tokenizer
             Settings.tokenizer = tiktoken.encoding_for_model("gpt-4o-mini").encode
-            # index作成
+            # インデックスを作成
             index = VectorStoreIndex.from_documents(documents)
 
             # ストレージへの保存（Google Driveにアップロード）
