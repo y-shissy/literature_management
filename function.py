@@ -213,8 +213,8 @@ def store_metadata_in_db(DB_FILE, metadata, file_path, uploaded_file, drive):
     session = SessionLocal()
 
     # カテゴリ，キーワード読み込み
-    categories = st.session_state["categories"]
-    keywords = st.session_state["keywords"]
+    categories_all = st.session_state["categories_all"]
+    keywords_all = st.session_state["keywords_all"]
 
     try:
         # DOIがすでに存在するか確認
@@ -237,8 +237,8 @@ def store_metadata_in_db(DB_FILE, metadata, file_path, uploaded_file, drive):
             # フォームの表示
             st.markdown('#### 入力フォーム')
             with st.form(key='metadata_form'):
-                selected_category = st.selectbox('関連テーマ', categories)
-                selected_keywords = st.multiselect('キーワード', keywords)
+                selected_category = st.selectbox('関連テーマ', categories_all)
+                selected_keywords = st.multiselect('キーワード', keywords_all)
                 memo = st.text_area('メモ')
                 read = st.checkbox('既読の場合チェック', value=False)
                 submit_button = st.form_submit_button(label='保存')
@@ -302,8 +302,8 @@ def store_metadata_in_db_ai(DB_FILE, metadata, file_path, uploaded_file, drive):
     session = SessionLocal()
 
     # カテゴリ，キーワード読み込み
-    categories = st.session_state["categories"]
-    keywords = st.session_state["keywords"]
+    categories_all = st.session_state["categories_all"]
+    keywords_all = st.session_state["keywords_all"]
 
     try:
         # DOIがすでに存在するか確認
@@ -497,8 +497,8 @@ def get_abstract_from_url(url):
 # openai apiを利用したテキストの翻訳・
 def translate_and_summarize(text):
     #カテゴリ，キーワード読み込み
-    categories=st.session_state["categories"]
-    keywords=st.session_state["keywords"]
+    categories_all=st.session_state["categories_all"]
+    keywords_all=st.session_state["keywords_all"]
     # 日本語に翻訳 + 要約（OpenAIを使用）
     openai_api_key = st.secrets["openai_api_key"]
     client = OpenAI(
@@ -529,7 +529,7 @@ def translate_and_summarize(text):
     keyword_prompt = (
         f"次の文章に関連するキーワードを，以下のキーワードリストの語句を参考に、カンマ区切りのリストとして出力してください:\n"
         f"文章: {text}\n\n"
-        f"キーワードリスト: {', '.join(keywords)}\n\n"
+        f"キーワードリスト: {', '.join(keywords_all)}\n\n"
         "関連するキーワードをカンマで区切って出力してください:"
     )
 
@@ -551,7 +551,7 @@ def translate_and_summarize(text):
     category_prompt = (
         f"以下のカンマ区切りのカテゴリの語句から，この要約に最も近い語句を一つ選んで出力してください:\n"
         f"要約: {summary}\n\n"
-        f"カテゴリ: {', '.join(categories)}\n\n"
+        f"カテゴリ: {', '.join(categories_all)}\n\n"
     )
 
     category_response = client.chat.completions.create(

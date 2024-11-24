@@ -171,16 +171,16 @@ def main():
         read_db()
 
         # キーワード，カテゴリを読み込む
-        keywords, categories = load_from_drive(drive, keywords_categories_file)
+        keywords_all, categories_all = load_from_drive(drive, keywords_categories_file)
 
         # ファイルが存在しない場合は新しく作成
-        if not keywords and not categories:
+        if not keywords_all and not categories_all:
             st.warning("キーワードとカテゴリが見つかりません。新しく作成します。")
             save_to_drive(drive, [], [])  # 空のリストを保存して新しいファイルを作成
 
         #session_stateに保存
-        st.session_state["categories"]=categories
-        st.session_state["keywords"]=keywords
+        st.session_state["categories_all"]=categories_all
+        st.session_state["keywords_all"]=keywords_all
 
         # カテゴリカラムのユニークな値を抽出
         unique_category = st.session_state["df"]["カテゴリ"].unique()
@@ -246,7 +246,7 @@ def main():
                 "カテゴリ",
                 help="カテゴリ",
                 width="medium",
-                options=categories,
+                options=categories_all,
                 required=True,
             )}
             # ユーザーが行を追加・削除できるようにする
@@ -355,25 +355,25 @@ def main():
     with tabs[3]:
         st.markdown("### キーワード・カテゴリ設定")
         # テキストエリアで入力を受け付け
-        keywords_input = st.text_area("キーワード(カンマ区切り)", value=','.join(keywords))
-        categories_input = st.text_area("カテゴリ(カンマ区切り)", value=','.join(categories))
+        categories_input = st.text_area("カテゴリ(カンマ区切り)", value=','.join(categories_all))
+        keywords_input = st.text_area("キーワード(カンマ区切り)", value=','.join(keywords_all))
 
         # リストに変換
-        new_keywords = [kw.strip() for kw in keywords_input.split(',') if kw.strip()]
         new_categories = [cat.strip() for cat in categories_input.split(',') if cat.strip()]
+        new_keywords = [kw.strip() for kw in keywords_input.split(',') if kw.strip()]
 
         # 保存ボタン
         if st.button("保存"):
             save_to_drive(drive, new_keywords, new_categories)
 
         # 現在のリストを表示
-        st.markdown("### 現在のキーワード")
-        for keyword in new_keywords:
-            st.write(keyword)
-
         st.markdown("### 現在のカテゴリ")
         for category in new_categories:
             st.write(category)
+
+        st.markdown("### 現在のキーワード")
+        for keyword in new_keywords:
+            st.write(keyword)
 
 if __name__ == "__main__":
     # アプリケーションを実行
