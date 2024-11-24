@@ -75,6 +75,8 @@ def main():
             pdf_file_path = download_file(drive, file_id)
             #PDFファイルからすべてのテキストを抽出
             content=extract_text_from_pdf(pdf_file_path)
+            #debug用
+            st.write(content)
             # 抽出したテキストから，要約とキーワードとカテゴリを取得
             summary,keyword_res,category_res=translate_and_summarize(content)
             # キーワードを文字列に変換
