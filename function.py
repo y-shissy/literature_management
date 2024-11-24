@@ -39,10 +39,10 @@ class Document:
 
     def get_doc_id(self):
         return self.id_  # Document IDを返す
-
-    def __repr__(self):
-        return f"Document(id_='{self.id_}', text='{self.text[:50]}...', metadata={self.metadata})"
     
+    def __repr__(self):
+        return f"Document(id_='{self.id_}', text='{self.text}', metadata={self.metadata})"
+        
 # PDFからの１~２ページのテキスト抽出（llama_index使用）
 def extract_text_from_pdf_pages(pdf_path):
     #PDFファイル読込
