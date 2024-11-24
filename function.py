@@ -29,7 +29,10 @@ from pdf2image import convert_from_path
 
 
 
-# 関数定義
+# Docmunetクラス設定
+class Document:
+    def __init__(self, text=""):
+        self.text = text
 
 # PDFからの１~２ページのテキスト抽出（llama_index使用）
 def extract_text_from_pdf_pages(pdf_path):
