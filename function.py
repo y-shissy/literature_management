@@ -63,20 +63,25 @@ def extract_text_from_pdf(pdf_path):
             ocr_cache[pdf_path] = pdf_to_text_with_ocr_per_page_multi_lang(pdf_path)
 
         for page_number, text in enumerate(ocr_cache[pdf_path]):
-            # メタデータを設定（必要な情報のみ）
+            # メタデータを設定
             metadata = {
                 'page_label': str(page_number + 1),
-                'file_name': os.path.basename(pdf_path),  # ファイル名だけを取得
+                'file_name': os.path.basename(pdf_path),  # ファイル名
                 'file_path': pdf_path  # フルパス
             }
-            # ドキュメントリストの既存のdocにOCRテキストを追加
-            if len(documents) <= page_number:
-                # 新しいドキュメントを作成する場合
-                documents.append({'text': text, 'metadata': metadata, 'id': str(uuid.uuid4())})
-            else:
-                # 既存のドキュメントのテキストをOCRの結果で上書きまたは追記
-                documents[page_number]['text'] = text
-                documents[page_number]['metadata'] = metadata  # 必要に応じてメタデータを設定
+
+            # 新しいドキュメントを作成
+            new_doc = {
+                'text': text,
+                'metadata': metadata,
+                'id': str(uuid.uuid4())  # UUIDを生成
+            }
+            documents.append(new_doc)  # 新しいドキュメントを追加
+
+    # documentsの各エントリーに必要なメソッドを追加
+    for doc in documents:
+        doc['get_doc_id'] = lambda: doc['id']
+        doc['hash'] = lambda: hashlib.sha256(f"{doc['id']}:{doc['text']}:{doc['metadata']}".encode('utf-8')).hexdigest()
 
     return documents
 
