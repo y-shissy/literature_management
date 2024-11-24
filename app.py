@@ -164,7 +164,7 @@ def main():
         st.success("すでにGoogle Driveに認証されています。")
 
     # キーワード，カテゴリを読み込む
-    keywords_all, categories_all = load_from_drive(drive, keywords_categories_file)
+    keywords_all, categories_all = load_from_drive(st.session_state['drive'], keywords_categories_file)
 
     # ファイルが存在しない場合は新しく作成
     if not keywords_all and not categories_all:
