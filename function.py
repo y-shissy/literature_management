@@ -20,8 +20,7 @@ from sqlalchemy.orm import sessionmaker, declarative_base
 from database import get_session, Metadata
 
 from openai import OpenAI
-from llama_index.core import download_loader, VectorStoreIndex, Settings, SimpleDirectoryReader
-from llama_index import Document
+from llama_index.core import download_loader, VectorStoreIndex, Settings, SimpleDirectoryReader,Document
 import tiktoken
 import urllib.parse
 
@@ -50,7 +49,7 @@ def pdf_to_text_with_ocr_per_page_multi_lang(pdf_path):
 
     return page_texts
 
-# PDFから全ページのテキスト抽出(llama_index + pytesseract)
+# PDFからテキストを抽出し、Documentオブジェクトを生成
 def extract_text_from_pdf(pdf_path):
     # SimpleDirectoryReaderで既存のドキュメントを読み込む
     reader = SimpleDirectoryReader(input_files=[pdf_path])
@@ -82,7 +81,8 @@ def extract_text_from_pdf(pdf_path):
             )
             new_documents.append(new_doc)
 
-        documents.extend(new_documents)  # 新しいドキュメントを追加
+        # 新しいOCR結果をdocumentsに追加
+        documents.extend(new_documents)
 
     return documents
 
