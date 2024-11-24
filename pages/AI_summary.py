@@ -129,7 +129,7 @@ def main():
                 
         # データを再読み込みしセッション状態を更新
         df = pd.read_sql("SELECT * From metadata", conn)
-        st.sessioin_state["df"]=df
+        st.session_state["df"]=df
         st.success("変更が保存されました")
 
 
