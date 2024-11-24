@@ -51,15 +51,28 @@ def main():
     st.markdown("#### インデックス化するPDFを選択")
     pdf_names = [file['title'] for file in pdf_files]
 
-    # ボタンによる選択
-    if st.button("全て選択"):
-        selected_files = pdf_names
-    elif st.button("未実施のみ選択"):
-        selected_files = [file for file in pdf_names if f"{file}_index.zip" not in index_file_names]
-    elif st.button("選択解除"):
-        selected_files = []
-    else:
-        selected_files = st.multiselect("インデックス化するPDFを選択してください:", pdf_names)
+    # 現在選択されているファイルをセッションステートで管理
+    if 'selected_files' not in st.session_state:
+        st.session_state.selected_files = []
+
+    # ボタンによる選択操作
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        if st.button("全て選択"):
+            st.session_state.selected_files = pdf_names
+
+    with col2:
+        if st.button("未実施のみ選択"):
+            st.session_state.selected_files = [file for file in pdf_names if f"{file}_index.zip" not in index_file_names]
+
+    with col3:
+        if st.button("選択解除"):
+            st.session_state.selected_files = []
+
+    # セレクトボックスで選択内容をユーザーが変更できるようにする
+    selected_files = st.multiselect("インデックス化するPDFを選択してください:", pdf_names, default=st.session_state.selected_files)
+    st.session_state.selected_files = selected_files  # セッションステートを更新
 
     # インデックス作成処理開始
     if st.button("インデックス生成開始"):
@@ -67,7 +80,7 @@ def main():
         actual_files_to_index = []
 
         for file in pdf_files:
-            if file['title'] in selected_files:
+            if file['title'] in st.session_state.selected_files:
                 actual_files_to_index.append(file)
 
         for idx, file in enumerate(actual_files_to_index):
