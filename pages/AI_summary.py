@@ -117,8 +117,8 @@ def main():
 
                 # データを挿入
                 conn.execute("""
-                    INSERT INTO metadata (タイトル,著者,ジャーナル,巻,号,開始ページ,終了ページ,年,湯役,キーワード,カテゴリ,doi,doi_url,ファイルリンク,メモ,Read)
-                    SELECT タイトル,著者,ジャーナル,巻,号,開始ページ,終了ページ,年,湯役,キーワード,カテゴリ,doi,doi_url,ファイルリンク,メモ,Read FROM temp_metadata
+                    INSERT INTO metadata (タイトル,著者,ジャーナル,巻,号,開始ページ,終了ページ,年,要約,キーワード,カテゴリ,doi,doi_url,ファイルリンク,メモ,Read)
+                    SELECT タイトル,著者,ジャーナル,巻,号,開始ページ,終了ページ,年,要約,キーワード,カテゴリ,doi,doi_url,ファイルリンク,メモ,Read FROM temp_metadata
                 """)
 
                 # 一時テーブルを削除
