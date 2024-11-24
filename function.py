@@ -40,57 +40,74 @@ def extract_text_from_pdf_pages(pdf_path):
     return all_text[:2]
 
 # OCR機能を使いPDFからテキスト抽出（ページごとに実行，日本語英語対応）
-def pdf_to_text_with_ocr_per_page_multi_lang(pdf_path):
+def pdf_to_text_with_ocr_per_page_multi_lang(pdf_path, dpi=300):
     """OCR機能を使いPDFからテキスト抽出（ページごとに実行、日本語英語対応）"""
-    images = convert_from_path(pdf_path, dpi=150)  # 解像度を150dpiに指定
-    page_texts = []
+    try:
+        # PDFを画像に変換
+        images = convert_from_path(pdf_path, dpi=dpi)  # 解像度を300dpiに設定
+        if not images:
+            raise ValueError("PDFから画像変換できませんでした。")
 
-    for i, image in enumerate(images):
-        try:
-            text = pytesseract.image_to_string(image, lang='jpn+eng')
-            page_texts.append(text)
-        except Exception as e:
-            logging.error(f"OCR failed on page {i + 1}: {e}")
-            page_texts.append("")  # エラー時は空文字列を追加
-    return page_texts
+        page_texts = []
+        for i, image in enumerate(images):
+            try:
+                # OCR実行（日本語と英語の混在対応）
+                text = pytesseract.image_to_string(image, lang='jpn+eng')
+                if text.strip():  # 空文字列ではない場合にのみ保存
+                    page_texts.append(text)
+                else:
+                    logging.warning(f"OCR結果が空のページがありました: {i + 1}")
+                    page_texts.append("")  # 空のページは空文字列で保存
+            except Exception as e:
+                logging.error(f"OCR処理失敗 (ページ {i + 1}): {e}")
+                page_texts.append("")  # エラー時も空文字列を保存
+        return page_texts
+
+    except Exception as e:
+        logging.error(f"PDFから画像変換エラー: {e}")
+        return []
 
 # PDFから全ページのテキスト抽出(llama_index + pytesseract)
 def extract_text_from_pdf(pdf_path):
-    """PDFから全ページのテキスト抽出（LlamaIndex + OCR）"""
-    # ドキュメントを開く
-    reader = SimpleDirectoryReader(input_files=[pdf_path])
-    documents = reader.load_data()
-    ocr_cache = {}
+    """PDFから全ページのテキスト抽出（OCRとLlamaIndexの併用）"""
+    try:
+        # LlamaIndexでテキスト抽出
+        reader = SimpleDirectoryReader(input_files=[pdf_path])
+        documents = reader.load_data()
+        ocr_cache = {}
 
-    # ドキュメントごとに処理
-    for doc in documents:
-        # テキストが空または空白文字のみの場合、OCRを適用
-        if doc.text.strip():
-            continue
+        # ドキュメントごとに処理
+        for doc in documents:
+            if doc.text.strip():  # テキストが空でない場合スキップ
+                continue
 
-        file_path = doc.metadata.get('file_path', pdf_path)  # メタデータがない場合にデフォルト値を使用
-        page_label = doc.metadata.get('page_label')
+            file_path = doc.metadata.get('file_path', pdf_path)
+            page_label = doc.metadata.get('page_label')
 
-        # OCRキャッシュにない場合、新たにPDFを処理
-        if file_path not in ocr_cache:
-            ocr_cache[file_path] = pdf_to_text_with_ocr_per_page_multi_lang(file_path)
+            # OCRキャッシュがない場合、新たにOCR実行
+            if file_path not in ocr_cache:
+                ocr_cache[file_path] = pdf_to_text_with_ocr_per_page_multi_lang(file_path)
 
-        # ページ番号がない場合、順次割り当て
-        if not page_label:
-            logging.warning(f"Missing page_label for document: {doc.metadata}")
-            doc.text = "\n".join(ocr_cache[file_path])  # 全ページを連結
-        else:
-            try:
-                page_number = int(page_label) - 1
-                if 0 <= page_number < len(ocr_cache[file_path]):
-                    doc.text = ocr_cache[file_path][page_number]
-                else:
-                    logging.warning(f"Page number {page_number + 1} is out of range for file {file_path}")
-            except ValueError as e:
-                logging.error(f"Invalid page_label {page_label}: {e}")
-                doc.text = ""
+            # ページ番号取得とOCR結果割り当て
+            if not page_label:
+                logging.warning(f"ページ番号がないドキュメントを処理中: {doc.metadata}")
+                doc.text = "\n".join(ocr_cache[file_path])
+            else:
+                try:
+                    page_number = int(page_label) - 1
+                    if 0 <= page_number < len(ocr_cache[file_path]):
+                        doc.text = ocr_cache[file_path][page_number]
+                    else:
+                        logging.warning(f"無効なページ番号 {page_number + 1} の指定がありました: {file_path}")
+                except ValueError as e:
+                    logging.error(f"ページ番号の解析エラー: {e}")
+                    doc.text = ""
 
-    return documents
+        return documents
+
+    except Exception as e:
+        logging.error(f"PDFテキスト抽出エラー: {e}")
+        return []
 
 #　抽出したテキストからDOI抽出
 # DOIの正規表現パターン
