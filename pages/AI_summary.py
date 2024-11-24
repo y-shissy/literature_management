@@ -106,24 +106,27 @@ def main():
         existing_ids=pd.read_sql("SELECT id FROM metadata", conn)["id"]
         new_ids=edited_df["id"]
         ids_to_delete=existing_ids[~existing_ids.isin(new_ids)]
-        # 元のテーブルに全カラムを挿入
         with conn:
-            # 対応するidを持つ行を削除
-            if not ids_to_delete.empty:
-                conn.execute(f"DELETE FROM metadata WHERE id IN ({','.join(map(str, ids_to_delete))})")
+            try:
+                # ステートメントの実行
+                if not ids_to_delete.empty:
+                    conn.execute(f"DELETE FROM metadata WHERE id IN ({','.join(map(str, ids_to_delete))})")
 
-            # 編集したデータフレームの内容を元のデータフレームに追加
-            conn.execute("DELETE FROM metadata WHERE id IN (SELECT id FROM temp_metadata)")
+                # `temp_metadata` のレコードを削除
+                conn.execute("DELETE FROM metadata WHERE id IN (SELECT id FROM temp_metadata)")
 
-            # 編集したデータを挿入
-            conn.execute("""
-                INSERT INTO metadata (タイトル,著者,ジャーナル,巻,号,開始ページ,終了ページ,年,湯役,キーワード,カテゴリ,doi,doi_url,ファイルリンク,メモ,Read)
-                SELECT タイトル,著者,ジャーナル,巻,号,開始ページ,終了ページ,年,湯役,キーワード,カテゴリ,doi,doi_url,ファイルリンク,メモ,Read FROM temp_metadata
-            """)
+                # データを挿入
+                conn.execute("""
+                    INSERT INTO metadata (タイトル,著者,ジャーナル,巻,号,開始ページ,終了ページ,年,湯役,キーワード,カテゴリ,doi,doi_url,ファイルリンク,メモ,Read)
+                    SELECT タイトル,著者,ジャーナル,巻,号,開始ページ,終了ページ,年,湯役,キーワード,カテゴリ,doi,doi_url,ファイルリンク,メモ,Read FROM temp_metadata
+                """)
 
-            # 一時テーブルを削除
-            conn.execute("DROP TABLE temp_metadata")
-        
+                # 一時テーブルを削除
+                conn.execute("DROP TABLE temp_metadata")
+
+            except sqlite3.OperationalError as err:
+                st.error(f"オペレーショナルエラー: {err}")
+                
         # データを再読み込みしセッション状態を更新
         df = pd.read_sql("SELECT * From metadata", conn)
         st.sessioin_state["df"]=df
