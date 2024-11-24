@@ -76,12 +76,17 @@ def extract_text_from_pdf(pdf_path):
         documents = reader.load_data()
         ocr_cache = {}
 
+        st.write("debug1")
+
         # ドキュメントごとに処理
         for doc in documents:
+            
+            st.write("debug2")
             # LlamaIndexでのテキスト抽出結果を確認
             if doc.text.strip():  # テキストが空でない場合、何もしない
                 continue
 
+            st.write("debug3")
             # PDFファイルのパスとページラベルの取得
             file_path = doc.metadata.get('file_path', pdf_path)
 
@@ -93,6 +98,8 @@ def extract_text_from_pdf(pdf_path):
 
             # OCR結果が得られない場合
             if not ocr_cache[file_path]:
+                
+                st.write("debug4")
                 logging.error(f"OCR処理が失敗しました。空の結果です: {file_path}")
                 continue  # 空の結果はスキップ
 
