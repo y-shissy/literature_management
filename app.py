@@ -264,7 +264,7 @@ def main():
                 if selected_file_path:
                     file_id = selected_file_path.split("id=")[-1]
                     # PDFファイルをダウンロード
-                    pdf_file_path = download_file(drive, file_id)
+                    pdf_file_path = download_file(st.session_state['drive'], file_id)
 
                     # PDFを表示
                     with open(pdf_file_path, "rb") as f:
