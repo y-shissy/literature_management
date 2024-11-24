@@ -216,6 +216,7 @@ def main():
 
             # 変更を保存
             if st.button("変更を保存"):
+                conn = sqlite3.connect(DB_FILE)
                 # 一時的なテーブルを作成（'id'列を除く）
                 edited_df.to_sql("temp_metadata", conn, if_exists="replace", index=False)
                 # 元データベースから削除されるべき行を特定する
@@ -258,10 +259,14 @@ def main():
                 selected_file_path = filtered_df.loc[selected_index, 'ファイルリンク']
 
                 # PDFの表示
+                # Google Driveの共有リンクを直接埋め込む形式に変換
                 if selected_file_path:
-                    with open(selected_file_path, "rb") as pdf_file:
-                        binary_data = pdf_file.read()
-                        pdf_viewer(input=binary_data, width=1400)
+                    # Google DriveのファイルIDを抽出して、iframeに埋め込む
+                    file_id = selected_file_path.split("id=")[-1]
+                    pdf_url = f"https://drive.google.com/uc?id={file_id}"
+
+                    # iframeでPDFを表示
+                    st.markdown(f'<iframe src="{pdf_url}" width="700" height="500"></iframe>', unsafe_allow_html=True)
 
     with tabs[1]:
         st.markdown("### PDFアップロード・AI自動要約")
