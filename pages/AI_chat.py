@@ -4,7 +4,7 @@ import tempfile
 import shutil
 import os
 import logging
-from llama_index import StorageContext, load_index_from_storage, ComposedIndex
+from llama_index.core import StorageContext, load_index_from_storage
 import openai
 
 # ページ設定
@@ -61,12 +61,16 @@ def main():
         st.error("有効なインデックスが見つかりませんでした。")
         return
 
-    # 複数インデックスを統合
-    st.write("インデックスを統合中...")
-    composed_index = ComposedIndex(index_list)
-
-    # クエリエンジン設定
-    query_engine = composed_index.as_query_engine()
+    # クエリを各インデックスに対して実行する関数
+    def query_indices(query):
+        results = []
+        for index in index_list:
+            try:
+                result = index.query(query)  # indexに適したクエリを実行するメソッドがあると仮定
+                results.append(result)
+            except Exception as e:
+                st.error(f"{index} でのクエリ実行に失敗しました: {str(e)}")
+        return results
 
     # チャットリセット
     if st.button("リセット", use_container_width=True):
@@ -85,16 +89,18 @@ def main():
     # 質問を受け付け
     if prompt_input := st.chat_input():
         prompt = prompt_input + "\nこの質問を日本語と英語の両方で検索し，最も関連性の高い結果を日本語で回答してください．"
-        response = query_engine.query(prompt)
+        responses = query_indices(prompt)
 
         st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
             st.write(prompt)
 
-        msg = str(response)
-        st.session_state.messages.append({"role": "assistant", "content": msg})
-        with st.chat_message("assistant"):
-            st.write(msg)
+        # 各インデックスからの応答を表示
+        for idx, res in enumerate(responses):
+            msg = str(res)
+            st.session_state.messages.append({"role": "assistant", "content": msg})
+            with st.chat_message("assistant"):
+                st.write(f"インデックス {idx + 1} の結果: {msg}")
 
     # 解凍したディレクトリをクリーンアップ
     for temp_dir in temp_dirs:

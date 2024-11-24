@@ -50,21 +50,35 @@ def main():
     # インデックス化するPDFを選択
     st.markdown("#### インデックス化するPDFを選択")
     pdf_names = [file['title'] for file in pdf_files]
-    files_to_index = st.multiselect("インデックス化するPDFを選択してください:", pdf_names)
+
+    # ボタンによる選択
+    if st.button("全て選択"):
+        selected_files = pdf_names
+    elif st.button("未実施のみ選択"):
+        selected_files = [file for file in pdf_names if f"{file}_index.zip" not in index_file_names]
+    elif st.button("選択解除"):
+        selected_files = []
+    else:
+        selected_files = st.multiselect("インデックス化するPDFを選択してください:", pdf_names)
 
     # インデックス作成処理開始
     if st.button("インデックス生成開始"):
         progress_bar = st.progress(0)
-        selected_files = [file for file in pdf_files if file['title'] in files_to_index]
+        actual_files_to_index = []
 
-        for idx, file in enumerate(selected_files):
+        for file in pdf_files:
+            if file['title'] in selected_files:
+                actual_files_to_index.append(file)
+
+        for idx, file in enumerate(actual_files_to_index):
             file_title = file['title']
             file_id = file['id']
 
-            # 既存インデックスチェック
+            # インデックスが既に存在する場合は削除
             if f"{file_title}_index.zip" in index_file_names:
-                st.info(f"{file_title} はすでにインデックス化されています。スキップします。")
-                continue
+                st.info(f"{file_title}はすでにインデックス化されています。既存のインデックスファイルを削除します。")
+                existing_file = [i for i in index_files if i['title'] == f"{file_title}_index.zip"][0]
+                existing_file.Delete()
 
             # Google DriveからPDFファイルをダウンロード
             downloaded_file = drive.CreateFile({'id': file_id})
@@ -104,7 +118,7 @@ def main():
             os.remove(zip_file_path)
 
             # プログレスバー更新
-            progress_percent = (idx + 1) / len(selected_files)
+            progress_percent = (idx + 1) / len(actual_files_to_index)
             progress_bar.progress(progress_percent)
 
         st.success("すべてのインデックスが生成されました！")
