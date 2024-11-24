@@ -87,7 +87,8 @@ def main():
 
             st.success("要約完了")
             st.markdown("##### タイトル")
-            st.write(edited_df.loc[edited_df["id"]==row_id, "タイトル"][0])
+            filtered_title = edited_df.loc[edited_df["id"] == row_id, "タイトル"]
+            st.write(filtered_title.iloc[0])
             st.markdown("##### カテゴリ")
             st.write(category_res)
             st.markdown("##### キーワード")
