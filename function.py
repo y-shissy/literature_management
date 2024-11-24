@@ -29,23 +29,6 @@ from pdf2image import convert_from_path
 import uuid
 import hashlib
 
-# Docmunetクラス設定
-class Document:
-    def __init__(self, id_, text, metadata=None, embedding=None):
-        """
-        Documentクラスのコンストラクタ
-
-        Args:
-            id_ (str): ドキュメント ID
-            text (str): ドキュメントの内容
-            metadata (dict, optional): ドキュメントに関連するメタデータ。デフォルトはNone。
-            embedding (optional): 埋め込みデータ。デフォルトはNone。
-        """
-        self.id_ = id_  # ドキュメント ID
-        self.text = text  # ドキュメントの内容
-        self.metadata = metadata if metadata is not None else {}  # メタデータ（辞書形式）
-        self.embedding = embedding  # 埋め込みデータ（オプション）
-        
 # PDFからの１~２ページのテキスト抽出（llama_index使用）
 def extract_text_from_pdf_pages(pdf_path):
     #PDFファイル読込
@@ -67,7 +50,7 @@ def pdf_to_text_with_ocr_per_page_multi_lang(pdf_path):
 def extract_text_from_pdf(pdf_path):
     # ドキュメントを開く
     reader = SimpleDirectoryReader(input_files=[pdf_path])
-    documents = reader.load_data()
+    documents = reader.load_data()  # 既存のドキュメントを取得
 
     ocr_cache = {}
 
@@ -86,11 +69,14 @@ def extract_text_from_pdf(pdf_path):
                 'file_name': os.path.basename(pdf_path),  # ファイル名だけを取得
                 'file_path': pdf_path  # フルパス
             }
-            doc_id = str(uuid.uuid4())  # UUIDを生成
-
-            # Documentインスタンスを作成
-            new_doc = Document(id_=doc_id, text=text, metadata=metadata)
-            documents.append(new_doc)  # 新しいドキュメントを追加
+            # ドキュメントリストの既存のdocにOCRテキストを追加
+            if len(documents) <= page_number:
+                # 新しいドキュメントを作成する場合
+                documents.append({'text': text, 'metadata': metadata, 'id': str(uuid.uuid4())})
+            else:
+                # 既存のドキュメントのテキストをOCRの結果で上書きまたは追記
+                documents[page_number]['text'] = text
+                documents[page_number]['metadata'] = metadata  # 必要に応じてメタデータを設定
 
     return documents
 
