@@ -21,7 +21,6 @@ st.set_page_config(layout="wide")
 #Google drive
 drive=st.session_state['drive']
 
-# メイン処理
 def main():
     st.title(":robot_face: RAG Setting")
     st.markdown("### PDFファイルからllama_indexを用いてインデックス生成")
@@ -30,11 +29,14 @@ def main():
     file_data = []
     file_list = drive.ListFile({'q': "mimeType='application/pdf' and trashed=false"}).GetList()
     for file in file_list:
+        # ファイルサイズが存在しない場合に備えてデフォルト値を設定
+        file_size_mb = round(int(file.get('fileSize', 0)) / 1000000, 1) if 'fileSize' in file else 0.0
+
         file_info = {
             'ファイル名': file['title'],
             'ファイルID': file['id'],
             '作成日時': file['createdDate'],
-            'ファイルサイズ(MB)': round(file['fileSize'] / 1000000, 1),
+            'ファイルサイズ(MB)': file_size_mb,
         }
         file_data.append(file_info)
 
