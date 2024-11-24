@@ -385,7 +385,7 @@ def main():
             updated_keywords = list(set(keywords_all) | set(new_keywords))
 
             # Google Driveに保存
-            save_to_drive(drive, updated_keywords, updated_categories)
+            save_to_drive(st.session_state['drive'], updated_keywords, updated_categories)
 
             # 保存後に新しいリストを表示
             st.success("新しいキーワードとカテゴリが保存されました。")
