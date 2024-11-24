@@ -68,6 +68,7 @@ def extract_text_from_pdf(pdf_path):
     # documentsが空または全てのdoc.textが空の場合はOCRを実行するフラグ
     perform_ocr = not documents or all(doc.text.strip() == "" for doc in documents)
 
+    st.write(documents)
     # documentsが空または全てのdoc.textが空の場合はOCRを適用
     if perform_ocr:
         if pdf_path not in ocr_cache:
@@ -85,7 +86,7 @@ def extract_text_from_pdf(pdf_path):
             # Documentインスタンスを作成
             new_doc = Document(id_=doc_id, text=text, metadata=metadata)
             documents.append(new_doc)  # 新しいドキュメントを追加
-
+        st.write(documents)
     return documents
 
 #　抽出したテキストからDOI抽出
