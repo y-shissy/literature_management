@@ -390,25 +390,28 @@ def main():
     with tabs[3]:
         st.markdown("### キーワード・カテゴリ設定")
 
-        # 現在のキーワードとカテゴリを表示
-        st.markdown("### 現在のカテゴリ")
-        for category in categories_all:
-            st.write(category)
+        # 現在のキーワードとカテゴリを横に並べて表示
+        col1, col2 = st.columns(2)  # 2つの列を作成
 
-        st.markdown("### 現在のキーワード")
-        for keyword in keywords_all:
-            st.write(keyword)
+        with col1:
+            st.markdown("### 現在のカテゴリ")
+            for category in categories_all:
+                st.write(category)
 
-        # テキストエリアで入力を受け付け
-        categories_input = st.text_area("追加するカテゴリ(カンマ区切り)", placeholder="新しいカテゴリを入力")
-        keywords_input = st.text_area("追加するキーワード(カンマ区切り)", placeholder="新しいキーワードを入力")
+        with col2:
+            st.markdown("### 現在のキーワード")
+            for keyword in keywords_all:
+                st.write(keyword)
 
-        # 入力をリストに変換
-        new_categories = [cat.strip() for cat in categories_input.split(',') if cat.strip()]
-        new_keywords = [kw.strip() for kw in keywords_input.split(',') if kw.strip()]
+        # テキストエリアで追加の入力を受け付け
+        categories_input = st.text_area("追加するカテゴリ(カンマ区切り)", placeholder="新しいカテゴリを入力", key="categories_input")
+        keywords_input = st.text_area("追加するキーワード(カンマ区切り)", placeholder="新しいキーワードを入力", key="keywords_input")
 
-        # 保存ボタン
         if st.button("保存"):
+            # 入力をリストに変換
+            new_categories = [cat.strip() for cat in categories_input.split(',') if cat.strip()]
+            new_keywords = [kw.strip() for kw in keywords_input.split(',') if kw.strip()]
+
             if new_categories:
                 # 既存のカテゴリに新しいカテゴリを追加
                 save_categories_to_drive(st.session_state['drive'], categories_all + new_categories)
@@ -426,6 +429,7 @@ def main():
             st.markdown("### 更新されたキーワード")
             for keyword in keywords_all + new_keywords:
                 st.write(keyword)
+                
 if __name__ == "__main__":
     # アプリケーションを実行
     main()
