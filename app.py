@@ -5,6 +5,7 @@ import sqlite3
 import os
 import tempfile
 import shutil
+import base64
 
 from streamlit_pdf_viewer import pdf_viewer
 import pandas as pd
@@ -268,9 +269,15 @@ def main():
 
                     # PDFを表示
                     with open(pdf_file_path, "rb") as f:
-                        st.download_button("PDFをダウンロード", f, "temp_pdf.pdf")
-                        st.markdown(f'<iframe src="data:application/pdf;base64,{f.read().encode("base64")}" width="700" height="500"></iframe>', unsafe_allow_html=True)
+                        pdf_data = f.read()  # PDFデータをバイナリで読み込む
+                        b64 = base64.b64encode(pdf_data).decode('utf-8')  # base64エンコード
+                        href = f'data:application/pdf;base64,{b64}'
 
+                        # PDFをダウンロードするボタン
+                        st.download_button("PDFをダウンロード", pdf_data, "temp_pdf.pdf", mime='application/pdf')
+
+                        # PDFをiframeで表示
+                        st.markdown(f'<iframe src="{href}" width="700" height="500"></iframe>', unsafe_allow_html=True)
 
     with tabs[1]:
         st.markdown("### PDFアップロード・AI自動要約")
