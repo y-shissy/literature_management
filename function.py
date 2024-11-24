@@ -40,11 +40,15 @@ def extract_text_from_pdf_pages(pdf_path):
 
 # OCR機能を使いPDFからテキスト抽出（ページごとに実行，日本語英語対応）
 def pdf_to_text_with_ocr_per_page_multi_lang(pdf_path):
+    #debug
+    st.write(pdf_path)
     #PDFを画像に変換
     images=convert_from_path(pdf_path)
     page_texts=[]
     for image in images:
         text=pytesseract.image_to_string(image, lang='jpn+eng')
+        #debug
+        st.write(text)
         page_texts.append(text)
     return page_texts
 
