@@ -27,7 +27,6 @@ import urllib.parse
 import pytesseract
 from pdf2image import convert_from_path
 
-import logging
 
 
 # 関数定義
@@ -40,85 +39,45 @@ def extract_text_from_pdf_pages(pdf_path):
     return all_text[:2]
 
 # OCR機能を使いPDFからテキスト抽出（ページごとに実行，日本語英語対応）
-def pdf_to_text_with_ocr_per_page_multi_lang(pdf_path, dpi=300):
-    """OCR機能を使いPDFからテキスト抽出（ページごとに実行、日本語英語対応）"""
-    try:
-        # PDFを画像に変換
-        images = convert_from_path(pdf_path, dpi=dpi)  # 解像度を300dpiに設定
-        if not images:
-            raise ValueError("PDFから画像変換できませんでした。")
-
-        page_texts = []
-        for i, image in enumerate(images):
-            try:
-                # OCR実行（日本語と英語の混在対応）
-                text = pytesseract.image_to_string(image, lang='jpn+eng')
-                if text.strip():  # 空文字列ではない場合にのみ保存
-                    page_texts.append(text)
-                else:
-                    logging.warning(f"OCR結果が空のページがありました: {i + 1}")
-                    page_texts.append("")  # 空のページは空文字列で保存
-            except Exception as e:
-                logging.error(f"OCR処理失敗 (ページ {i + 1}): {e}")
-                page_texts.append("")  # エラー時も空文字列を保存
-        return page_texts
-
-    except Exception as e:
-        logging.error(f"PDFから画像変換エラー: {e}")
-        return []
-
+def pdf_to_text_with_ocr_per_page_multi_lang(pdf_path):
+    #PDFを画像に変換
+    images=convert_from_path(pdf_path)
+    page_texts=[]
+    for image in images:
+        text=pytesseract.image_to_string(image, lang='jpn+eng')
+        page_texts.append(text)
+    return page_texts
 
 # PDFから全ページのテキスト抽出(llama_index + pytesseract)
 def extract_text_from_pdf(pdf_path):
-    """PDFから全ページのテキスト抽出（OCRとLlamaIndexの併用）"""
-    try:
-        # LlamaIndexでテキスト抽出
-        reader = SimpleDirectoryReader(input_files=[pdf_path])
-        documents = reader.load_data()
+    #ドキュメントを開く
+    reader = SimpleDirectoryReader(input_files=[pdf_path])
+    documents = reader.load_data()
+    ocr_cache = {}
 
-        logging.info(f"ロードされたドキュメント数: {len(documents)}")
+    # ドキュメントが空の場合、OCRを実行するフラグ
+    perform_ocr = True
 
-        # ドキュメントが存在しない場合はOCRを実行
-        if not documents:
-            logging.warning(f"ドキュメントがゼロです。LlamaIndexではテキストが取得できませんでした。OCRを実行します: {pdf_path}")
-            documents = []  # 空のリストを保持
-            ocr_result = pdf_to_text_with_ocr_per_page_multi_lang(pdf_path)
-            if ocr_result:
-                # OCR結果をドキュメントとして変換
-                for page_text in ocr_result:
-                    documents.append({"text": page_text})
-            else:
-                logging.error(f"OCR処理中にエラーが発生しました: {pdf_path}")
-                return []
+    # llama_indexで抽出したドキュメントを確認
+    for doc in documents:
+        if doc.text.strip() != "":
+            perform_ocr = False  # テキストが見つかればOCRを実施する必要はない
+            break
 
-        ocr_cache = {}
+    # documentsが空または全てのdoc.textが空の場合はOCRを適用
+    if perform_ocr or not documents:
+        # ファイルがキャッシュにない場合，OCRを実行しページごとに結果を保存
+        if pdf_path not in ocr_cache:
+            ocr_cache[pdf_path] = pdf_to_text_with_ocr_per_page_multi_lang(pdf_path)
 
-        # ドキュメントごとに処理
-        for doc in documents:
-            # LlamaIndexでのテキスト抽出結果を確認
-            if doc['text'].strip():  # テキストが空でない場合、何もしない
-                continue
+        # OCR結果をドキュメントに割り当て
+        for page_number, text in enumerate(ocr_cache[pdf_path]):
+            # documentsリストのインデックスを調整（1ページ目が0インデックス）
+            if page_number < len(documents):
+                documents[page_number].text = text  # ページ番号に対応するOCR結果を取得
 
-            file_path = pdf_path  # For processing OCR
-            logging.info(f"LlamaIndex での抽出結果が空のため、再度 OCR を実行します: {file_path}")
+    return documents
 
-            # OCR処理を実行し、結果をキャッシュに保存
-            if file_path not in ocr_cache:
-                ocr_cache[file_path] = pdf_to_text_with_ocr_per_page_multi_lang(file_path)
-
-            # OCR結果が得られない場合
-            if not ocr_cache[file_path]:
-                logging.error(f"OCR処理が失敗しました。空の結果です: {file_path}")
-                continue  # 空の結果はスキップ
-
-            # OCR結果をドキュメントに割り当てる処理は省略（必要に応じて実装）
-            doc['text'] = ocr_cache[file_path][0]  # 最初のページのテキストをセット
-
-        return documents
-
-    except Exception as e:
-        logging.error(f"PDFからテキスト抽出中にエラー: {e}")
-        return []
 #　抽出したテキストからDOI抽出
 # DOIの正規表現パターン
 doi_pattern = re.compile(r'(?i)\b(?:doi[:\s]*|DOI[:\s]*|https?://(?:dx\.doi\.org/|doi\.org/))?(10\.\d{4,9}/[-._;()/:A-Z0-9]+\b)')
