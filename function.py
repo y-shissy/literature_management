@@ -26,13 +26,19 @@ import urllib.parse
 
 import pytesseract
 from pdf2image import convert_from_path
-
+import uuid
 
 
 # Docmunetクラス設定
 class Document:
-    def __init__(self, text=""):
-        self.text = text
+    def __init__(self, id_, text, metadata=None, embedding=None):
+        self.id_ = id_  # ドキュメント ID
+        self.text = text  # 抽出されたテキスト
+        self.metadata = metadata or {}  # メタデータ（辞書形式）
+        self.embedding = embedding  # 埋め込みデータ（オプション）
+
+    def __repr__(self):
+        return f"Document(id_='{self.id_}', text='{self.text[:50]}...', metadata={self.metadata})"
 
 # PDFからの１~２ページのテキスト抽出（llama_index使用）
 def extract_text_from_pdf_pages(pdf_path):
@@ -56,32 +62,29 @@ def extract_text_from_pdf(pdf_path):
     # ドキュメントを開く
     reader = SimpleDirectoryReader(input_files=[pdf_path])
     documents = reader.load_data()
-    st.write(documents)
 
-    # OCRキャッシュの初期化
     ocr_cache = {}
 
-    # documentsが空の場合はOCRを実行するフラグ
+    # documentsが空または全てのdoc.textが空の場合はOCRを実行するフラグ
     perform_ocr = not documents or all(doc.text.strip() == "" for doc in documents)
 
     # documentsが空または全てのdoc.textが空の場合はOCRを適用
     if perform_ocr:
-        # ファイルがキャッシュにない場合，OCRを実行しページごとに結果を保存
         if pdf_path not in ocr_cache:
             ocr_cache[pdf_path] = pdf_to_text_with_ocr_per_page_multi_lang(pdf_path)
 
-        # OCR結果をドキュメントに割り当て
         for page_number, text in enumerate(ocr_cache[pdf_path]):
-            # documentsリストのインデックスを調整（1ページ目が0インデックス）
-            if page_number < len(documents):
-                documents[page_number].text = text  # ページ番号に対応するOCR結果を取得
-            else:
-                # documentsが不足している場合には新しいドキュメントを作成
-                new_doc = Document(text=text)  # Documentクラスのインスタンスを生成
-                documents.append(new_doc)  # 新しいドキュメントを追加
+            # メタデータを設定（必要な情報のみ）
+            metadata = {
+                'page_label': str(page_number + 1),
+                'file_name': os.path.basename(pdf_path),  # ファイル名だけを取得
+                'file_path': pdf_path  # フルパス
+            }
+            doc_id = str(uuid.uuid4())  # UUIDを生成
 
-        
-        st.write(documents)
+            # Documentインスタンスを作成
+            new_doc = Document(id_=doc_id, text=text, metadata=metadata)
+            documents.append(new_doc)  # 新しいドキュメントを追加
 
     return documents
 
