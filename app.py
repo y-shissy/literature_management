@@ -163,6 +163,18 @@ def main():
     else:
         st.success("すでにGoogle Driveに認証されています。")
 
+    # キーワード，カテゴリを読み込む
+    keywords_all, categories_all = load_from_drive(drive, keywords_categories_file)
+
+    # ファイルが存在しない場合は新しく作成
+    if not keywords_all and not categories_all:
+        st.warning("キーワードとカテゴリが見つかりません。新しく作成します。")
+        save_to_drive(drive, [], [])  # 空のリストを保存して新しいファイルを作成
+
+    #session_stateに保存
+    st.session_state["categories_all"]=categories_all
+    st.session_state["keywords_all"]=keywords_all
+
 
     # タブ別表示
     items=["データベース表示","文献追加","ナレッジ検索","設定"]
@@ -174,17 +186,7 @@ def main():
         # データベース読み込み
         read_db()
 
-        # キーワード，カテゴリを読み込む
-        keywords_all, categories_all = load_from_drive(drive, keywords_categories_file)
 
-        # ファイルが存在しない場合は新しく作成
-        if not keywords_all and not categories_all:
-            st.warning("キーワードとカテゴリが見つかりません。新しく作成します。")
-            save_to_drive(drive, [], [])  # 空のリストを保存して新しいファイルを作成
-
-        #session_stateに保存
-        st.session_state["categories_all"]=categories_all
-        st.session_state["keywords_all"]=keywords_all
 
         # カテゴリカラムのユニークな値を抽出
         unique_category = st.session_state["df"]["カテゴリ"].unique()
