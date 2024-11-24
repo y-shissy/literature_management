@@ -86,6 +86,8 @@ def extract_text_from_pdf(pdf_path):
 
             # OCRキャッシュがない場合、新たにOCR実行
             if file_path not in ocr_cache:
+                #debug
+                st.write("ocr_try_flag")
                 ocr_cache[file_path] = pdf_to_text_with_ocr_per_page_multi_lang(file_path)
 
             # ページ番号取得とOCR結果割り当て
