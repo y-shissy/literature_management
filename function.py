@@ -52,7 +52,6 @@ class Document:
         return self.text  # ドキュメントの内容を返す
 
     def as_related_node_info(self):
-        # ノードに関連する情報を返すメソッド
         return {
             "id": self.get_doc_id(),
             "text": self.text,
