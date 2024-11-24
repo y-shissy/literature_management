@@ -120,16 +120,20 @@ def file_exists_in_drive(drive, filename):
 
 # Google Driveからキーワードとカテゴリを読み込む関数
 def load_from_drive(drive, filename):
+    keywords = []
+    categories = []
     exists, file_id = file_exists_in_drive(drive, filename)
     if exists:
-        file = drive.CreateFile({'id': file_id})
-        file.GetContentFile('temp_keywords_categories.csv')
-        df = pd.read_csv('temp_keywords_categories.csv')
-        keywords = df['キーワード'].dropna().tolist()
-        categories = df['カテゴリ'].dropna().tolist()
-        return keywords, categories
-    else:
-        return [], []  # ファイルが存在しない場合は空のリストを返す
+        try:
+            file = drive.CreateFile({'id': file_id})
+            file.GetContentFile('temp_keywords_categories.csv')
+            df = pd.read_csv('temp_keywords_categories.csv')
+            keywords = df['キーワード'].dropna().tolist()
+            categories = df['カテゴリ'].dropna().tolist()
+        except Exception as e:
+            st.warning(f"ファイルの読み込み中にエラーが発生しました: {e}")
+    return keywords, categories
+
     
 # メイン処理
 def main():
@@ -354,25 +358,43 @@ def main():
 
     with tabs[3]:
         st.markdown("### キーワード・カテゴリ設定")
-        # テキストエリアで入力を受け付け
-        categories_input = st.text_area("カテゴリ(カンマ区切り)", value=','.join(categories_all))
-        keywords_input = st.text_area("キーワード(カンマ区切り)", value=','.join(keywords_all))
 
-        # リストに変換
+        # 現在のキーワードとカテゴリを表示
+        st.markdown("### 現在のカテゴリ")
+        for category in categories_all:
+            st.write(category)
+
+        st.markdown("### 現在のキーワード")
+        for keyword in keywords_all:
+            st.write(keyword)
+
+        # テキストエリアで入力を受け付け
+        categories_input = st.text_area("追加するカテゴリ(カンマ区切り)", placeholder="新しいカテゴリを入力")
+        keywords_input = st.text_area("追加するキーワード(カンマ区切り)", placeholder="新しいキーワードを入力")
+
+        # 現在のリストに新しい入力リストを追加
         new_categories = [cat.strip() for cat in categories_input.split(',') if cat.strip()]
         new_keywords = [kw.strip() for kw in keywords_input.split(',') if kw.strip()]
 
         # 保存ボタン
         if st.button("保存"):
-            save_to_drive(drive, new_keywords, new_categories)
+            # 既存のリストに新しいカテゴリとキーワードを追加
+            updated_categories = list(set(categories_all) | set(new_categories))
+            updated_keywords = list(set(keywords_all) | set(new_keywords))
 
-        # 現在のリストを表示
-        st.markdown("### 現在のカテゴリ")
-        for category in new_categories:
-            st.write(category)
+            # Google Driveに保存
+            save_to_drive(drive, updated_keywords, updated_categories)
 
-        st.markdown("### 現在のキーワード")
-        for keyword in new_keywords:
+            # 保存後に新しいリストを表示
+            st.success("新しいキーワードとカテゴリが保存されました。")
+
+            st.markdown("### 更新されたカテゴリ")
+            for category in updated_categories:
+                st.write(category)
+
+            st.markdown("### 更新されたキーワード")
+            for keyword in updated_keywords:
+                st.write(keyword)
             st.write(keyword)
 
 if __name__ == "__main__":
