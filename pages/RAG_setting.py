@@ -3,6 +3,7 @@ from pydrive.auth import GoogleAuth
 from pydrive.drive import GoogleDrive
 import os
 import tempfile
+import shutil
 import pandas as pd
 import openai  # OpenAIライブラリをインポート
 from llama_index.core import VectorStoreIndex, Settings
@@ -71,36 +72,26 @@ def main():
             index = VectorStoreIndex.from_documents(documents)
 
             # ストレージへの保存（ディレクトリを指定）
-            index_dir = tempfile.gettempdir()  # 一時ディレクトリ
-            index_file_name = f"{file_title}_index.json"  # ファイル名を設定
-            index_file_path = os.path.join(index_dir, index_file_name)
+            index_dir = tempfile.mkdtemp()  # 一時ディレクトリを作成
+            index.storage_context.persist(persist_dir=index_dir)
 
-            # インデックスを保存
-            index.storage_context.persist(persist_dir=index_dir)  # ここはディレクトリ指定
+            # ZIPファイル作成
+            zip_file_path = os.path.join(tempfile.gettempdir(), f"{file_title}_index.zip")
+            shutil.make_archive(zip_file_path.replace('.zip', ''), 'zip', index_dir)
 
-            # 実際にファイルが保存されたか確認
-            if not os.path.exists(index_file_path):
-                st.error(f"インデックスファイルが保存されていません: {index_file_path}")
-                continue
-
-            # Google Driveにインデックスファイルをアップロード
-            index_file = drive.CreateFile({'title': index_file_name})  # タイトル名を設定
-            index_file.SetContentFile(index_file_path)  # 一時ファイルのパスを与える
+            # Google DriveにZIPファイルをアップロード
+            index_file = drive.CreateFile({'title': f"{file_title}_index.zip"})
+            index_file.SetContentFile(zip_file_path)
 
             try:
                 index_file.Upload()
-                st.success(f"{index_file_name}がGoogle Driveにアップロードされました！")
+                st.success(f"{file_title}_index.zip が Google Drive にアップロードされました！")
             except Exception as e:
                 st.error(f"Google Driveへのアップロードに失敗しました: {str(e)}")
 
-            # アップロード後に存在を確認し、削除
-            if os.path.exists(index_file_path):
-                os.remove(index_file_path)  # アップロードが成功した後にファイルを削除
-            else:
-                st.error(f"インデックスファイルが存在しません: {index_file_path}")
-
-            # 一時PDFファイルの削除
-            os.remove(temp_pdf_path)
+            # 後処理
+            shutil.rmtree(index_dir)  # 一時ディレクトリを削除
+            os.remove(zip_file_path)  # ZIPファイルを削除
 
             # プログレスバーの更新
             progress_percent = (idx + 1) / number_of_files
