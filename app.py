@@ -272,7 +272,8 @@ def main():
                     # PDFを表示
                     pdf_viewer(pdf_file_path)  # streamlit_pdf_viewerでPDFを表示
 
-                    # 論文情報の表示
+                    # 論文情報の表示をサイドバーに追加
+                    st.sidebar.markdown("### 論文情報")
                     title = filtered_df.loc[selected_index, 'タイトル']
                     authors = filtered_df.loc[selected_index, '著者']
                     journal = filtered_df.loc[selected_index, 'ジャーナル']
@@ -282,21 +283,21 @@ def main():
                     abstract = filtered_df.loc[selected_index, '要約']
                     notes = filtered_df.loc[selected_index, 'メモ']
 
-                    st.markdown(f"### {title}")
-                    st.markdown(f"**著者**: {authors}")
-                    st.markdown(f"**ジャーナル**: {journal}")
-                    st.markdown(f"**年**: {year}")
-                    st.markdown(f"**カテゴリ**: {category}")
-                    st.markdown(f"**キーワード**: {keywords}")
-                    st.markdown(f"**要約**: {abstract}")
-                    st.markdown(f"**メモ**: {notes}")
+                    st.sidebar.markdown(f"**タイトル**: {title}")
+                    st.sidebar.markdown(f"**著者**: {authors}")
+                    st.sidebar.markdown(f"**ジャーナル**: {journal}")
+                    st.sidebar.markdown(f"**年**: {year}")
+                    st.sidebar.markdown(f"**カテゴリ**: {category}")
+                    st.sidebar.markdown(f"**キーワード**: {keywords}")
+                    st.sidebar.markdown(f"**要約**: {abstract}")
+                    st.sidebar.markdown(f"**メモ**: {notes}")
 
-                    # PDFをダウンロードするボタン
+                    # PDFをダウンロードするボタンをサイドバーに追加
                     download_file_name = f"{title}.pdf"  # タイトルに.pdfを追加
                     with open(pdf_file_path, "rb") as f:
                         pdf_data = f.read()
-                        st.download_button("PDFをダウンロード", pdf_data, download_file_name, mime='application/pdf')
-
+                        st.sidebar.download_button("PDFをダウンロード", pdf_data, download_file_name, mime='application/pdf')
+                        
     with tabs[1]:
         st.markdown("### PDFアップロード・AI自動要約")
         if st.button("PDF Uploader with AI"):
