@@ -42,7 +42,7 @@ def load_indices_from_drive():
             index = load_index_from_storage(storage_context)
 
             # 読み込んだインデックスをキャッシュに追加
-            indices.append(index)
+            indices.append({"name": index_file["title"].replace("_index.zip", ""), "index": index})
 
             # 後始末
             os.remove(zip_file_path)
@@ -52,16 +52,37 @@ def load_indices_from_drive():
     return indices
 
 def query_indices(prompt, indices):
-    """各インデックスに対してクエリを実行し、結果を取得"""
+    """各インデックスに対してクエリを実行し、結果と参照情報を取得"""
     results = []
-    for idx, index in enumerate(indices):
+    for idx, item in enumerate(indices):
         try:
-            query_engine = index.as_query_engine()
-            result = query_engine.query(prompt)
-            results.append(f"インデックス {idx + 1}: {result}")
+            query_engine = item["index"].as_query_engine()
+            result = query_engine.query(prompt)  # クエリを実行
+            results.append({"source": item["name"], "content": result})
         except Exception as e:
-            results.append(f"インデックス {idx + 1} でクエリ実行に失敗: {str(e)}")
+            st.error(f"{item['name']} でのクエリ実行に失敗しました: {str(e)}")
     return results
+
+def format_results(results):
+    """結果をフォーマットし、関連性の高いものを優先表示"""
+    # 結果をランク付け (例として、最初の結果を最重要と仮定)
+    sorted_results = sorted(results, key=lambda x: len(str(x["content"])), reverse=True)
+
+    top_results = sorted_results[:1]  # 最も関連性の高い結果
+    other_results = sorted_results[1:]  # 残りの結果
+
+    # 最も関連性の高い結果を表示
+    st.subheader("📌 最も関連性の高い結果")
+    for res in top_results:
+        st.write(f"**文献名**: {res['source']}")
+        st.write(res["content"])
+
+    # その他の結果を折りたたみ形式で表示
+    if other_results:
+        with st.expander("📚 他の関連文献を見る"):
+            for res in other_results:
+                st.write(f"**文献名**: {res['source']}")
+                st.write(res["content"])
 
 def main():
     st.title(":robot_face: AI Chat")
@@ -105,10 +126,9 @@ def main():
         with st.chat_message("user"):
             st.write(prompt)
 
-        for res in responses:
-            st.session_state.messages.append({"role": "assistant", "content": res})
-            with st.chat_message("assistant"):
-                st.write(res)
+        if responses:
+            st.session_state.messages.append({"role": "assistant", "content": "検索結果を表示中..."})
+            format_results(responses)
 
 if __name__ == "__main__":
     main()
