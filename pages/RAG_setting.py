@@ -1,26 +1,20 @@
 import streamlit as st
 from pydrive.auth import GoogleAuth
 from pydrive.drive import GoogleDrive
-import sqlite3
 import os
 import tempfile
 import pandas as pd
 import openai  # OpenAIライブラリをインポート
-from llama_index.core import download_loader, VectorStoreIndex, Settings, SimpleDirectoryReader,StorageContext,load_index_from_storage
-from llama_index.core.node_parser import SentenceSplitter
-from llama_index.llms.openai import OpenAI
+from llama_index.core import VectorStoreIndex, Settings
+from llama_index.llms.openai import OpenAI  # OpenAIクラスのインポート
 from llama_index.embeddings.openai import OpenAIEmbedding
 import tiktoken
-import pytesseract
-from pdf2image import convert_from_path
-# 関数読込
-
-from function import store_metadata_in_db, handle_pdf_upload,store_metadata_in_db_ai,download_file,extract_text_from_pdf,translate_and_summarize,pdf_to_text_with_ocr_per_page_multi_lang
+from function import extract_text_from_pdf
 
 # ページ設定
 st.set_page_config(layout="wide")
-#Google drive
-drive=st.session_state['drive']
+# Google Drive接続
+drive = st.session_state['drive']
 # OpenAI APIキーの設定
 openai.api_key = st.secrets["openai_api_key"]
 
@@ -64,7 +58,7 @@ def main():
             downloaded_file.GetContentFile(temp_pdf_path)
 
             # PDFファイルを読み込むために適したメソッドを使用
-            documents = extract_text_from_pdf(temp_pdf_path)  # PDFからのテキスト抽出処理の呼び出し
+            documents = extract_text_from_pdf(temp_pdf_path)
 
             # ベクトル化して保存
             Settings.llm = OpenAI(model="gpt-4o-mini", temperature=0.1)
@@ -76,9 +70,13 @@ def main():
             # インデックスを作成
             index = VectorStoreIndex.from_documents(documents)
 
-            # ストレージへの保存（指定した一時ディレクトリにアップロード）
-            index_file_path = os.path.join(tempfile.gettempdir(), f"{file_title}_index.json")  # 絶対パスを指定
-            index.storage_context.persist(persist_dir=index_file_path)
+            # ストレージへの保存（ディレクトリを指定）
+            index_dir = tempfile.gettempdir()  # 一時ディレクトリ
+            index_file_name = f"{file_title}_index.json"  # ファイル名を設定
+            index_file_path = os.path.join(index_dir, index_file_name)
+
+            # インデックスを保存
+            index.storage_context.persist(persist_dir=index_dir)  # ここはディレクトリ指定
 
             # 実際にファイルが保存されたか確認
             if not os.path.exists(index_file_path):
@@ -86,11 +84,16 @@ def main():
                 continue
 
             # Google Driveにインデックスファイルをアップロード
-            index_file = drive.CreateFile({'title': f"{file_title}_index.json"})  # タイトル名を設定
+            index_file = drive.CreateFile({'title': index_file_name})  # タイトル名を設定
             index_file.SetContentFile(index_file_path)  # 一時ファイルのパスを与える
-            index_file.Upload()
 
-            # アップロード後に存在を確認
+            try:
+                index_file.Upload()
+                st.success(f"{index_file_name}がGoogle Driveにアップロードされました！")
+            except Exception as e:
+                st.error(f"Google Driveへのアップロードに失敗しました: {str(e)}")
+
+            # アップロード後に存在を確認し、削除
             if os.path.exists(index_file_path):
                 os.remove(index_file_path)  # アップロードが成功した後にファイルを削除
             else:
