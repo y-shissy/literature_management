@@ -76,15 +76,14 @@ def main():
             # インデックスを作成
             index = VectorStoreIndex.from_documents(documents)
 
-            # ストレージへの保存（Google Driveにアップロード）
-            index_file_path = f"{file_title}_index.json"
+            # ストレージへの保存（指定した一時ディレクトリにアップロード）
+            index_file_path = os.path.join(tempfile.gettempdir(), f"{file_title}_index.json")  # 絶対パスを指定
             index.storage_context.persist(persist_dir=index_file_path)
 
             # Google Driveにインデックスファイルをアップロード
-            index_file = drive.CreateFile({'title': index_file_path})
-            index_file.SetContentFile(index_file_path)
+            index_file = drive.CreateFile({'title': f"{file_title}_index.json"})  # タイトル名を直接利用
+            index_file.SetContentFile(index_file_path)  # パスを変数で指定
             index_file.Upload()
-
             # 一時ファイルの削除
             os.remove(temp_pdf_path)
             os.remove(index_file_path)  # インデックスファイルも削除

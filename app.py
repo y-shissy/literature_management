@@ -100,29 +100,57 @@ def download_db_from_google_drive(drive):
     else:
         st.error(f"{DB_FILE} がGoogle Drive内に見つかりません。新規作成します。")
         initialize_db()
+
+
 # キーワードをGoogle Driveに保存する関数
 def save_keywords_to_drive(drive, keywords):
+    # 既存ファイルのチェック
+    exists, file_id = file_exists_in_drive(drive, 'keywords.csv')
+
+    # 既存ファイルがあれば削除
+    if exists:
+        try:
+            existing_file = drive.CreateFile({'id': file_id})
+            existing_file.Trash()  # ファイルをゴミ箱に移動
+        except Exception as e:
+            st.warning(f"既存のファイルを削除中にエラーが発生しました: {e}")
+
+    # 新しいファイルを作成
     with tempfile.NamedTemporaryFile(delete=False, suffix=".csv") as temp_file:
         df = pd.DataFrame({'キーワード': keywords})
         df.to_csv(temp_file.name, index=False)
 
         # ファイルをGoogle Driveにアップロード
-        file_drive = drive.CreateFile({'title': 'keywords.csv'})
-        file_drive.SetContentFile(temp_file.name)
-        file_drive.Upload()
-        st.success("キーワードがGoogle Driveに保存されました。")
+        new_file_drive = drive.CreateFile({'title': 'keywords.csv'})
+        new_file_drive.SetContentFile(temp_file.name)
+        new_file_drive.Upload()
+
+    st.success("キーワードがGoogle Driveに保存されました。")
 
 # カテゴリをGoogle Driveに保存する関数
 def save_categories_to_drive(drive, categories):
+    # 既存ファイルのチェック
+    exists, file_id = file_exists_in_drive(drive, 'categories.csv')
+
+    # 既存ファイルがあれば削除
+    if exists:
+        try:
+            existing_file = drive.CreateFile({'id': file_id})
+            existing_file.Trash()  # ファイルをゴミ箱に移動
+        except Exception as e:
+            st.warning(f"既存のファイルを削除中にエラーが発生しました: {e}")
+
+    # 新しいファイルを作成
     with tempfile.NamedTemporaryFile(delete=False, suffix=".csv") as temp_file:
         df = pd.DataFrame({'カテゴリ': categories})
         df.to_csv(temp_file.name, index=False)
 
         # ファイルをGoogle Driveにアップロード
-        file_drive = drive.CreateFile({'title': 'categories.csv'})
-        file_drive.SetContentFile(temp_file.name)
-        file_drive.Upload()
-        st.success("カテゴリがGoogle Driveに保存されました。")
+        new_file_drive = drive.CreateFile({'title': 'categories.csv'})
+        new_file_drive.SetContentFile(temp_file.name)
+        new_file_drive.Upload()
+
+    st.success("カテゴリがGoogle Driveに保存されました。")
 
 # Google Driveに指定のファイルが存在するか確認する関数
 def file_exists_in_drive(drive, filename):
