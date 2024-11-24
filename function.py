@@ -27,6 +27,7 @@ import urllib.parse
 import pytesseract
 from pdf2image import convert_from_path
 
+import logging
 
 
 # 関数定義
@@ -40,34 +41,55 @@ def extract_text_from_pdf_pages(pdf_path):
 
 # OCR機能を使いPDFからテキスト抽出（ページごとに実行，日本語英語対応）
 def pdf_to_text_with_ocr_per_page_multi_lang(pdf_path):
-    #PDFを画像に変換
-    images=convert_from_path(pdf_path)
-    page_texts=[]
-    for image in images:
-        text=pytesseract.image_to_string(image, lang='jpn+eng')
-        page_texts.append(text)
+    """OCR機能を使いPDFからテキスト抽出（ページごとに実行、日本語英語対応）"""
+    images = convert_from_path(pdf_path, dpi=150)  # 解像度を150dpiに指定
+    page_texts = []
+
+    for i, image in enumerate(images):
+        try:
+            text = pytesseract.image_to_string(image, lang='jpn+eng')
+            page_texts.append(text)
+        except Exception as e:
+            logging.error(f"OCR failed on page {i + 1}: {e}")
+            page_texts.append("")  # エラー時は空文字列を追加
     return page_texts
 
 # PDFから全ページのテキスト抽出(llama_index + pytesseract)
 def extract_text_from_pdf(pdf_path):
-    #ドキュメントを開く
-    reader=SimpleDirectoryReader(input_files=[pdf_path])
+    """PDFから全ページのテキスト抽出（LlamaIndex + OCR）"""
+    # ドキュメントを開く
+    reader = SimpleDirectoryReader(input_files=[pdf_path])
     documents = reader.load_data()
-    ocr_cache={}
-    #llama_indexで抽出したドキュメントが空の場合はOCR適用
+    ocr_cache = {}
+
+    # ドキュメントごとに処理
     for doc in documents:
-        if doc.text.strip() != "":
+        # テキストが空または空白文字のみの場合、OCRを適用
+        if doc.text.strip():
             continue
-        file_path=doc.metadata['file_path']
-        #ページ番号取得
+
+        file_path = doc.metadata.get('file_path', pdf_path)  # メタデータがない場合にデフォルト値を使用
         page_label = doc.metadata.get('page_label')
-        #ファイルがキャッシュにない場合，OCRを実行しページごとに結果を保存
+
+        # OCRキャッシュにない場合、新たにPDFを処理
         if file_path not in ocr_cache:
-            ocr_cache[file_path]=pdf_to_text_with_ocr_per_page_multi_lang(file_path)
-        #各ページごとの結果をドキュメントに割り当て
-        page_number=int(page_label) - 1
-        if page_number < len(ocr_cache[file_path]):
-            doc.text=ocr_cache[file_path][page_number] #ページ番号に対応するOCR結果を取得
+            ocr_cache[file_path] = pdf_to_text_with_ocr_per_page_multi_lang(file_path)
+
+        # ページ番号がない場合、順次割り当て
+        if not page_label:
+            logging.warning(f"Missing page_label for document: {doc.metadata}")
+            doc.text = "\n".join(ocr_cache[file_path])  # 全ページを連結
+        else:
+            try:
+                page_number = int(page_label) - 1
+                if 0 <= page_number < len(ocr_cache[file_path]):
+                    doc.text = ocr_cache[file_path][page_number]
+                else:
+                    logging.warning(f"Page number {page_number + 1} is out of range for file {file_path}")
+            except ValueError as e:
+                logging.error(f"Invalid page_label {page_label}: {e}")
+                doc.text = ""
+
     return documents
 
 #　抽出したテキストからDOI抽出
