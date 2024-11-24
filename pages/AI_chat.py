@@ -6,6 +6,7 @@ import os
 import tempfile
 import logging
 from llama_index.core import StorageContext,load_index_from_storage
+import openai  # OpenAIライブラリをインポート
 
 # 関数読込
 from function import store_metadata_in_db, handle_pdf_upload,store_metadata_in_db_ai,download_file,extract_text_from_pdf,translate_and_summarize
@@ -15,7 +16,8 @@ st.set_page_config(layout="wide")
 #Google drive
 drive=st.session_state['drive']
 
-DB_FILE = "literature_database.db"
+# OpenAI APIキーの設定
+openai.api_key = st.secrets["openai_api_key"]
 
 # メイン処理
 def main():
