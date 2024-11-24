@@ -86,9 +86,13 @@ def main():
             edited_df.loc[edited_df["id"]==row_id, "カテゴリ"]=category_res
 
             st.success("要約完了")
-            st.write(edited_df.loc[edited_df["id"]==row_id, "タイトル"])
+            st.markdown("##### タイトル")
+            st.write(edited_df.loc[edited_df["id"]==row_id, "タイトル"][0])
+            st.markdown("##### カテゴリ")
             st.write(category_res)
+            st.markdown("##### キーワード")
             st.write(keywords_str)
+            st.markdown("##### 要約")
             st.write(summary)
 
             #プログレスバー更新
@@ -107,11 +111,11 @@ def main():
             if not ids_to_delete.empty:
                 conn.excute(f"DELETE FROM metadata WHERE id IN ({','.join(map(str,ids_to_delete))})")
             # 編集したデータフレームの内容を元のデータフレームに追加
-            conn.execute("DELETE FROM metadata WHERE id in (SELECT id FROM temp_metadata)")
+            conn.execute("DELETE FROM metadata WHERE id IN (SELECT id FROM temp_metadata)")
             conn.execute("""
-                    INSERT INTO metadata (タイトル,著者,ジャーナル,巻,号,開始ページ,終了ページ,年,湯役,キーワード,カテゴリ,doi,doi_url,ファイルリンク,メモ,Read)
-                    SELECT タイトル,著者,ジャーナル,巻,号,開始ページ,終了ページ,年,湯役,キーワード,カテゴリ,doi,doi_url,ファイルリンク,メモ,Read FROM temp_metadata
-                """)
+                INSERT INTO metadata (タイトル,著者,ジャーナル,巻,号,開始ページ,終了ページ,年,湯役,キーワード,カテゴリ,doi,doi_url,ファイルリンク,メモ,Read)
+                SELECT タイトル,著者,ジャーナル,巻,号,開始ページ,終了ページ,年,湯役,キーワード,カテゴリ,doi,doi_url,ファイルリンク,メモ,Read FROM temp_metadata
+            """)
             conn.execute("DROP TABLE temp_metadata")
         
         # データを再読み込みしセッション状態を更新
