@@ -397,13 +397,15 @@ def main():
             st.markdown("##### カテゴリ一覧")
             for category in categories_all:
                 st.write(category)
-                # テキストエリアで追加の入力を受け付け
-                categories_input = st.text_area("追加するカテゴリ(カンマ区切り)", placeholder="新しいカテゴリを入力", key="categories_input")
+
         with col2:
             st.markdown("##### キーワード一覧")
             for keyword in keywords_all:
                 st.write(keyword)
-                keywords_input = st.text_area("追加するキーワード(カンマ区切り)", placeholder="新しいキーワードを入力", key="keywords_input")
+
+        # テキストエリアで追加の入力を受け付け
+        categories_input = st.text_area("追加するカテゴリ(カンマ区切り)", placeholder="新しいカテゴリを入力", key="categories_input")
+        keywords_input = st.text_area("追加するキーワード(カンマ区切り)", placeholder="新しいキーワードを入力", key="keywords_input")
 
         if st.button("保存"):
             # 入力をリストに変換
@@ -418,13 +420,13 @@ def main():
                 save_keywords_to_drive(st.session_state['drive'], keywords_all + new_keywords)
 
             # 更新後のリストを表示
-            st.success("新しいキーワードとカテゴリが保存されました。")
+            st.success("新しいカテゴリとキーワード保存されました。")
 
-            st.markdown("### 更新されたカテゴリ")
+            st.markdown("### 更新されたカテゴリ一覧")
             for category in categories_all + new_categories:
                 st.write(category)
 
-            st.markdown("### 更新されたキーワード")
+            st.markdown("### 更新されたキーワード一覧")
             for keyword in keywords_all + new_keywords:
                 st.write(keyword)
 
