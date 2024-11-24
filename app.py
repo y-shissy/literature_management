@@ -274,11 +274,10 @@ def main():
                         href = f'data:application/pdf;base64,{b64}'
 
                         # PDFをダウンロードするボタン
-                        st.download_button("PDFをダウンロード", pdf_data, "temp_pdf.pdf", mime='application/pdf')
+                        st.download_button("PDFをダウンロード", pdf_data, file_id, mime='application/pdf')
 
-                        # PDFをiframeで表示
-                        st.markdown(f'<iframe src="{href}" width="700" height="500"></iframe>', unsafe_allow_html=True)
-
+                        # PDFを表示
+                        pdf_viewer(pdf_file_path)  # streamlit_pdf_viewerでPDFを表示
     with tabs[1]:
         st.markdown("### PDFアップロード・AI自動要約")
         if st.button("PDF Uploader with AI"):
