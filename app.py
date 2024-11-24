@@ -201,16 +201,16 @@ def main():
         read_db()
 
         # Google Driveからキーワードとカテゴリを読み込む
-        keywords_all = load_keywords_from_drive(drive)
-        categories_all = load_categories_from_drive(drive)
+        keywords_all = load_keywords_from_drive(st.session_state['drive'])
+        categories_all = load_categories_from_drive(st.session_state['drive'])
 
         # ファイルが存在しない場合、新しいファイルを作成
         if not keywords_all:
             st.warning("キーワードが見つかりません。新しいファイルを作成します。")
-            save_keywords_to_drive(drive, [])  # 空のキーワードリストを保存
+            save_keywords_to_drive(st.session_state['drive'], [])  # 空のキーワードリストを保存
         if not categories_all:
             st.warning("カテゴリが見つかりません。新しいファイルを作成します。")
-            save_categories_to_drive(drive, [])  # 空のカテゴリリストを保存
+            save_categories_to_drive(st.session_state['drive'], [])  # 空のカテゴリリストを保存
 
         #session_stateに保存
         st.session_state["categories_all"]=categories_all
@@ -411,10 +411,10 @@ def main():
         if st.button("保存"):
             if new_categories:
                 # 既存のカテゴリに新しいカテゴリを追加
-                save_categories_to_drive(drive, categories_all + new_categories)
+                save_categories_to_drive(st.session_state['drive'], categories_all + new_categories)
             if new_keywords:
                 # 既存のキーワードに新しいキーワードを追加
-                save_keywords_to_drive(drive, keywords_all + new_keywords)
+                save_keywords_to_drive(st.session_state['drive'], keywords_all + new_keywords)
 
             # 更新後のリストを表示
             st.success("新しいキーワードとカテゴリが保存されました。")
