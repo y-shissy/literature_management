@@ -33,18 +33,11 @@ from function import download_file
 # ページ設定
 st.set_page_config(layout="wide")
 
+# ファイル名設定
+# データベースファイル
 DB_FILE = "literature_database.db"
-
-# 初期設定
-# 文献にタグ付けするカテゴリの選択肢
-categories = ["A","B"]
-# 文献にタグ付けするキーワードの選択肢
-keywords = ["a","b"]
-
-#session_stateに保存
-st.session_state["categories"]=categories
-st.session_state["keywords"]=keywords
-
+# キーワード，カテゴリ格納ファイル
+keywords_categories_file= 'keywords_categories.csv'
 
 # Google Drive 認証設定
 def google_drive_auth(creds_file_path):
@@ -107,7 +100,37 @@ def download_db_from_google_drive(drive):
     else:
         st.error(f"{DB_FILE} がGoogle Drive内に見つかりません。新規作成します。")
         initialize_db()
+# キーワードとカテゴリをGoogle Driveに保存する関数
+def save_to_drive(drive, keywords, categories):
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".csv") as temp_file:
+        # キーワードとカテゴリをデータフレームに変換
+        df = pd.DataFrame({'キーワード': keywords, 'カテゴリ': categories})
+        df.to_csv(temp_file.name, index=False)
 
+        # ファイルをGoogle Driveにアップロード
+        file_drive = drive.CreateFile({'title': 'keywords_categories.csv'})
+        file_drive.SetContentFile(temp_file.name)
+        file_drive.Upload()
+        st.success("キーワードとカテゴリがGoogle Driveに保存されました。")
+
+# Google Driveに指定のファイルが存在するか確認する関数
+def file_exists_in_drive(drive, filename):
+    file_list = drive.ListFile({'q': f"title='{filename}' and trashed=false"}).GetList()
+    return len(file_list) > 0, file_list[0].get('id') if file_list else None
+
+# Google Driveからキーワードとカテゴリを読み込む関数
+def load_from_drive(drive, filename):
+    exists, file_id = file_exists_in_drive(drive, filename)
+    if exists:
+        file = drive.CreateFile({'id': file_id})
+        file.GetContentFile('temp_keywords_categories.csv')
+        df = pd.read_csv('temp_keywords_categories.csv')
+        keywords = df['キーワード'].dropna().tolist()
+        categories = df['カテゴリ'].dropna().tolist()
+        return keywords, categories
+    else:
+        return [], []  # ファイルが存在しない場合は空のリストを返す
+    
 # メイン処理
 def main():
     st.title(":book:文献管理アプリ")
@@ -146,6 +169,18 @@ def main():
         download_db_from_google_drive(st.session_state['drive'])
         # データベース読み込み
         read_db()
+
+        # キーワード，カテゴリを読み込む
+        keywords, categories = load_from_drive(drive, keywords_categories_file)
+
+        # ファイルが存在しない場合は新しく作成
+        if not keywords and not categories:
+            st.warning("キーワードとカテゴリが見つかりません。新しく作成します。")
+            save_to_drive(drive, [], [])  # 空のリストを保存して新しいファイルを作成
+
+        #session_stateに保存
+        st.session_state["categories"]=categories
+        st.session_state["keywords"]=keywords
 
         # カテゴリカラムのユニークな値を抽出
         unique_category = st.session_state["df"]["カテゴリ"].unique()
@@ -309,9 +344,36 @@ def main():
 
 
     with tabs[2]:
-        st.write("under construction")
+        st.markdown("### AIチャットボット")
+        if st.button("AI Chat"):
+            st.switch_page("pages/AI_chat.py")
+
+        st.markdown("### 文献データのベクトル化")
+        if st.button("RAG Setting"):
+            st.switch_page("pages/RAG_setting.py")
+
     with tabs[3]:
-        st.write("under construction")
+        st.markdown("### キーワード・カテゴリ設定")
+        # テキストエリアで入力を受け付け
+        keywords_input = st.text_area("キーワード(カンマ区切り)", value=','.join(keywords))
+        categories_input = st.text_area("カテゴリ(カンマ区切り)", value=','.join(categories))
+
+        # リストに変換
+        new_keywords = [kw.strip() for kw in keywords_input.split(',') if kw.strip()]
+        new_categories = [cat.strip() for cat in categories_input.split(',') if cat.strip()]
+
+        # 保存ボタン
+        if st.button("保存"):
+            save_to_drive(drive, new_keywords, new_categories)
+
+        # 現在のリストを表示
+        st.markdown("### 現在のキーワード")
+        for keyword in new_keywords:
+            st.write(keyword)
+
+        st.markdown("### 現在のカテゴリ")
+        for category in new_categories:
+            st.write(category)
 
 if __name__ == "__main__":
     # アプリケーションを実行
