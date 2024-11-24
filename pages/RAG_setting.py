@@ -24,7 +24,7 @@ drive=st.session_state['drive']
 # OpenAI APIキーの設定
 openai.api_key = st.secrets["openai_api_key"]
 
-#メイン関数
+# メイン関数
 def main():
     st.title(":robot_face: RAG Setting")
     st.markdown("### PDFファイルからllama_indexを用いてインデックス生成")
@@ -49,7 +49,7 @@ def main():
         df = pd.DataFrame(file_data)
         st.dataframe(df)
 
-    # index作成処理開始
+    # インデックス作成処理開始
     if st.button("インデックス生成開始"):
         progress_bar = st.progress(0)  # プログレスバーを初期化
         number_of_files = len(file_list)
@@ -80,13 +80,24 @@ def main():
             index_file_path = os.path.join(tempfile.gettempdir(), f"{file_title}_index.json")  # 絶対パスを指定
             index.storage_context.persist(persist_dir=index_file_path)
 
+            # 実際にファイルが保存されたか確認
+            if not os.path.exists(index_file_path):
+                st.error(f"インデックスファイルが保存されていません: {index_file_path}")
+                continue
+
             # Google Driveにインデックスファイルをアップロード
-            index_file = drive.CreateFile({'title': f"{file_title}_index.json"})  # タイトル名を直接利用
-            index_file.SetContentFile(index_file_path)  # パスを変数で指定
+            index_file = drive.CreateFile({'title': f"{file_title}_index.json"})  # タイトル名を設定
+            index_file.SetContentFile(index_file_path)  # 一時ファイルのパスを与える
             index_file.Upload()
-            # 一時ファイルの削除
+
+            # アップロード後に存在を確認
+            if os.path.exists(index_file_path):
+                os.remove(index_file_path)  # アップロードが成功した後にファイルを削除
+            else:
+                st.error(f"インデックスファイルが存在しません: {index_file_path}")
+
+            # 一時PDFファイルの削除
             os.remove(temp_pdf_path)
-            os.remove(index_file_path)  # インデックスファイルも削除
 
             # プログレスバーの更新
             progress_percent = (idx + 1) / number_of_files
