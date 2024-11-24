@@ -63,7 +63,8 @@ def extract_text_from_pdf(pdf_path):
         if doc.text.strip() != "":
             perform_ocr = False  # テキストが見つかればOCRを実施する必要はない
             break
-
+    #debug
+    st.write("documents")
     # documentsが空または全てのdoc.textが空の場合はOCRを適用
     if perform_ocr or not documents:
         # ファイルがキャッシュにない場合，OCRを実行しページごとに結果を保存
@@ -76,6 +77,8 @@ def extract_text_from_pdf(pdf_path):
             if page_number < len(documents):
                 documents[page_number].text = text  # ページ番号に対応するOCR結果を取得
 
+        #debug
+        st.write("documents")
     return documents
 
 #　抽出したテキストからDOI抽出
