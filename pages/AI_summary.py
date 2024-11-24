@@ -106,17 +106,22 @@ def main():
         existing_ids=pd.read_sql("SELECT id FROM metadata", conn)["id"]
         new_ids=edited_df["id"]
         ids_to_delete=existing_ids[~existing_ids.isin(new_ids)]
-        #元のテーブルに全カラムを挿入
+        # 元のテーブルに全カラムを挿入
         with conn:
-            # 対応するidを持つ行ｗ削除
+            # 対応するidを持つ行を削除
             if not ids_to_delete.empty:
-                conn.excute(f"DELETE FROM metadata WHERE id IN ({','.join(map(str,ids_to_delete))})")
+                conn.execute(f"DELETE FROM metadata WHERE id IN ({','.join(map(str, ids_to_delete))})")
+
             # 編集したデータフレームの内容を元のデータフレームに追加
             conn.execute("DELETE FROM metadata WHERE id IN (SELECT id FROM temp_metadata)")
+
+            # 編集したデータを挿入
             conn.execute("""
                 INSERT INTO metadata (タイトル,著者,ジャーナル,巻,号,開始ページ,終了ページ,年,湯役,キーワード,カテゴリ,doi,doi_url,ファイルリンク,メモ,Read)
                 SELECT タイトル,著者,ジャーナル,巻,号,開始ページ,終了ページ,年,湯役,キーワード,カテゴリ,doi,doi_url,ファイルリンク,メモ,Read FROM temp_metadata
             """)
+
+            # 一時テーブルを削除
             conn.execute("DROP TABLE temp_metadata")
         
         # データを再読み込みしセッション状態を更新
