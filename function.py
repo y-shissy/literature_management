@@ -202,9 +202,10 @@ def upload_db_to_google_drive(DB_FILE,drive):
 
     return f"https://drive.google.com/uc?id={gfile['id']}"
 
+def sanitize_filename(filename):
+    """ファイル名から不適切な文字を削除"""
+    return re.sub(r'[\/:*?"<>|]', '', filename)
 
-
-# メタデータをデータベースに格納する関数
 def store_metadata_in_db(DB_FILE, metadata, file_path, uploaded_file, drive):
     # セッションを作成
     DATABASE_URL = f"sqlite:///{DB_FILE}"
@@ -224,7 +225,12 @@ def store_metadata_in_db(DB_FILE, metadata, file_path, uploaded_file, drive):
             st.warning("This DOI is already in the database.")
             return
 
-        # カラムの幅を指定
+        # PDFファイル名をメタデータのタイトルに基づいて変更
+        title = metadata.get("タイトル", "unnamed_document")  # タイトルがない場合のデフォルト値
+        sanitized_title = sanitize_filename(title)
+        new_filename = f"{sanitized_title}.pdf"
+
+        # フォームの表示
         col1, col2 = st.columns([3, 1])
 
         with col1:
@@ -234,7 +240,6 @@ def store_metadata_in_db(DB_FILE, metadata, file_path, uploaded_file, drive):
             pdf_viewer(input=binary_data, width=1000, height=1000)
 
         with col2:
-            # フォームの表示
             st.markdown('#### 入力フォーム')
             with st.form(key='metadata_form'):
                 selected_category = st.selectbox('関連テーマ', categories_all)
@@ -251,7 +256,7 @@ def store_metadata_in_db(DB_FILE, metadata, file_path, uploaded_file, drive):
                 selected_keywords_str = ",".join(selected_keywords)
 
                 # Google DriveにPDFをアップロード
-                file_link = upload_to_google_drive(drive, file_path, uploaded_file.name)
+                file_link = upload_to_google_drive(drive, file_path, new_filename)
                 if not file_link:
                     st.error("Google Driveへのアップロードに失敗しました。")
                     return
@@ -292,8 +297,6 @@ def store_metadata_in_db(DB_FILE, metadata, file_path, uploaded_file, drive):
         session.close()
 
 
-
-# メタデータをデータベースに格納する関数
 def store_metadata_in_db_ai(DB_FILE, metadata, file_path, uploaded_file, drive):
     # セッションを作成
     DATABASE_URL = f"sqlite:///{DB_FILE}"
@@ -313,20 +316,26 @@ def store_metadata_in_db_ai(DB_FILE, metadata, file_path, uploaded_file, drive):
             st.warning("This DOI is already in the database.")
             return
 
+        # PDFファイル名をメタデータのタイトルに基づいて変更
+        title = metadata.get("タイトル", "unnamed_document")  # タイトルがない場合のデフォルト値
+        sanitized_title = sanitize_filename(title)
+        new_filename = f"{sanitized_title}.pdf"
+
         # PDFファイルからすべてのテキストを抽出
-        content=extract_text_from_pdf(file_path)
+        content = extract_text_from_pdf(file_path)
+
         # 抽出したテキストから，要約とキーワードとカテゴリを取得
-        summary,keyword_res,category_res=translate_and_summarize(content)
+        summary, keyword_res, category_res = translate_and_summarize(content)
         st.write(summary)
 
         # キーワードを文字列に変換
-        keywords_str=','.join(keyword_res)
+        keywords_str = ','.join(keyword_res)
 
         # DOI URLを生成
         doi_url = f"https://doi.org/{metadata['doi']}"
 
         # Google DriveにPDFをアップロード
-        file_link = upload_to_google_drive(drive, file_path, uploaded_file.name)
+        file_link = upload_to_google_drive(drive, file_path, new_filename)
         if not file_link:
             st.error("Google Driveへのアップロードに失敗しました。")
             return
@@ -365,8 +374,6 @@ def store_metadata_in_db_ai(DB_FILE, metadata, file_path, uploaded_file, drive):
         session.rollback()
     finally:
         session.close()
-
-
 
 
 
