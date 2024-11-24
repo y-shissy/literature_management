@@ -31,46 +31,20 @@ import hashlib
 
 # Docmunetクラス設定
 class Document:
-    def __init__(self, text, metadata=None, embedding=None):
+    def __init__(self, id_, text, metadata=None, embedding=None):
         """
         Documentクラスのコンストラクタ
 
         Args:
+            id_ (str): ドキュメント ID
             text (str): ドキュメントの内容
             metadata (dict, optional): ドキュメントに関連するメタデータ。デフォルトはNone。
             embedding (optional): 埋め込みデータ。デフォルトはNone。
         """
+        self.id_ = id_  # ドキュメント ID
         self.text = text  # ドキュメントの内容
         self.metadata = metadata if metadata is not None else {}  # メタデータ（辞書形式）
         self.embedding = embedding  # 埋め込みデータ（オプション）
-
-    def get_doc_id(self):
-        """ドキュメント ID を生成する関数"""
-        return hashlib.sha256(self.text.encode('utf-8')).hexdigest()
-
-    def hash(self):
-        """ドキュメントの内容からハッシュ値を計算する関数"""
-        doc_str = f"{self.text}:{self.metadata}"
-        return hashlib.sha256(doc_str.encode('utf-8')).hexdigest()  # SHA-256のハッシュ
-
-    def get_metadata_str(self, mode=None):
-        """メタデータを文字列に変換するメソッド"""
-        return str(self.metadata)  # シンプルにメタデータを文字列として返す
-
-    def get_content(self, metadata_mode=None):
-        """ドキュメントの内容を取得するメソッド"""
-        return self.text  # ドキュメントの内容を返す
-
-    def as_related_node_info(self):
-        """ノードに関連する情報を返すメソッド"""
-        return {
-            "text": self.text,
-            "metadata": self.metadata
-        }
-
-    def __repr__(self):
-        """ドキュメントの表示用文字列"""
-        return f"Document(text='{self.text}...',metadata={self.metadata})"
         
 # PDFからの１~２ページのテキスト抽出（llama_index使用）
 def extract_text_from_pdf_pages(pdf_path):
