@@ -388,24 +388,22 @@ def main():
             st.switch_page("pages/RAG_setting.py")
 
     with tabs[3]:
-        st.markdown("### キーワード・カテゴリ設定")
+        st.markdown("### カテゴリ/キーワード設定")
 
         # 現在のキーワードとカテゴリを横に並べて表示
         col1, col2 = st.columns(2)  # 2つの列を作成
 
         with col1:
-            st.markdown("### 現在のカテゴリ")
+            st.markdown("##### カテゴリ一覧")
             for category in categories_all:
                 st.write(category)
-
+                # テキストエリアで追加の入力を受け付け
+                categories_input = st.text_area("追加するカテゴリ(カンマ区切り)", placeholder="新しいカテゴリを入力", key="categories_input")
         with col2:
-            st.markdown("### 現在のキーワード")
+            st.markdown("##### キーワード一覧")
             for keyword in keywords_all:
                 st.write(keyword)
-
-        # テキストエリアで追加の入力を受け付け
-        categories_input = st.text_area("追加するカテゴリ(カンマ区切り)", placeholder="新しいカテゴリを入力", key="categories_input")
-        keywords_input = st.text_area("追加するキーワード(カンマ区切り)", placeholder="新しいキーワードを入力", key="keywords_input")
+                keywords_input = st.text_area("追加するキーワード(カンマ区切り)", placeholder="新しいキーワードを入力", key="keywords_input")
 
         if st.button("保存"):
             # 入力をリストに変換
@@ -429,7 +427,7 @@ def main():
             st.markdown("### 更新されたキーワード")
             for keyword in keywords_all + new_keywords:
                 st.write(keyword)
-                
+
 if __name__ == "__main__":
     # アプリケーションを実行
     main()
