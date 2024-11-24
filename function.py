@@ -315,9 +315,11 @@ def store_metadata_in_db_ai(DB_FILE, metadata, file_path, uploaded_file, drive):
 
         # PDFファイルからすべてのテキストを抽出
         content=extract_text_from_pdf(file_path)
+        st.write(content)
 
         # 抽出したテキストから，要約とキーワードとカテゴリを取得
         summary,keyword_res,category_res=translate_and_summarize(content)
+        st.write(summary)
 
         # キーワードを文字列に変換
         keywords_str=','.join(keyword_res)

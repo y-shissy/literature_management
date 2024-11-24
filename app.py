@@ -264,10 +264,6 @@ def main():
                         pdf_viewer(input=binary_data, width=1400)
 
     with tabs[1]:
-        st.markdown("### PDFアップロード")
-        if st.button("PDF Uploader"):
-            st.switch_page("pages/PDF_upload.py")
-
         st.markdown("### PDFアップロード・AI自動要約")
         if st.button("PDF Uploader with AI"):
             st.switch_page("pages/PDF_upload_AI.py")
@@ -277,45 +273,6 @@ def main():
             st.switch_page("pages/AI_summary.py")
 
 
-        # # アップロードされたPDFを処理
-        # uploaded_file = st.file_uploader("PDFをアップロード", type=["pdf"])
-        # if uploaded_file:
-        #     # Google Drive にPDFをアップロード
-        #     file_link = upload_to_google_drive(drive, uploaded_file)
-
-        #     if file_link:  # アップロードに成功した場合
-        #         # SQLiteデータベースに記録
-        #         conn = sqlite3.connect(DB_FILE)
-        #         c = conn.cursor()
-        #         try:
-        #             c.execute("INSERT INTO pdf_data (title, link) VALUES (?, ?)", (uploaded_file.name, file_link))
-        #             conn.commit()
-        #             st.success("PDFの情報がデータベースに追加されました！")
-        #         except Exception as e:
-        #             st.error(f"データベースへの追加に失敗しました: {e}")
-        #         finally:
-        #             conn.close()
-
-        #         # データベースをGoogle Driveにアップロード
-        #         db_link = upload_db_to_google_drive(drive)
-        #         if db_link:  # データベースアップロードに成功した場合
-        #             st.success("データベースを更新しました！")
-        #             st.write(f"PDFリンク: [ここをクリック]({file_link})")
-        #             st.write(f"データベースはGoogle Driveにアップロードされました。リンク: [ここをクリック]({db_link})")
-
-        # # データベースから保存済みPDFを表示
-        # try:
-        #     conn = sqlite3.connect(DB_FILE)
-        #     c = conn.cursor()
-        #     c.execute("SELECT title, link FROM pdf_data")
-        #     rows = c.fetchall()
-        #     st.write("保存済みPDF一覧:")
-        #     for row in rows:
-        #         st.write(f"- {row[0]}: [リンク]({row[1]})")
-        #     conn.close()
-        # except Exception as e:
-        #     st.error(f"データベースの取得に失敗しました: {e}")
-            
     with tabs[2]:
         st.write("under construction")
     with tabs[3]:

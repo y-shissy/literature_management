@@ -46,16 +46,18 @@ def main():
 
     option = st.radio("操作を選択してください", ('DOI自動判別+要約','DOI自動判別', 'DOI手動入力'))
 
-
     if option == 'DOI自動判別+要約':
-        uploaded_file = st.file_uploader("PDFをアップロード", type=["pdf"])
-        if uploaded_file:
-            # PDFを処理してDOIとメタデータを取得
-            metadata, file_path = handle_pdf_upload(uploaded_file, auto_doi=True)
-            if metadata and file_path:
-                # データベース格納関数を呼び出し
-                store_metadata_in_db_ai(DB_FILE, metadata, file_path, uploaded_file, drive)
-
+        uploaded_files = st.file_uploader("PDFをアップロード (複数選択可能)", type=["pdf"], accept_multiple_files=True)
+        if uploaded_files:
+            for uploaded_file in uploaded_files:
+                st.markdown(f"### 処理中: {uploaded_file.name}")
+                # 各PDFを処理してDOIとメタデータを取得
+                metadata, file_path = handle_pdf_upload(uploaded_file, auto_doi=True)
+                if metadata and file_path:
+                    # データベース格納関数を呼び出し
+                    store_metadata_in_db_ai(DB_FILE, metadata, file_path, uploaded_file, drive)
+                else:
+                    st.warning(f"{uploaded_file.name} の処理に失敗しました。")
 
     elif option == 'DOI自動判別':
         uploaded_file = st.file_uploader("PDFをアップロード", type=["pdf"])
