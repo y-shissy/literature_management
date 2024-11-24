@@ -78,19 +78,26 @@ def extract_text_from_pdf(pdf_path):
 
         # ドキュメントごとに処理
         for doc in documents:
-            if doc.text.strip():  # テキストが空でない場合スキップ
+            # LlamaIndexでのテキスト抽出結果を確認
+            if doc.text.strip():  # テキストが空でない場合、何もしない
                 continue
 
+            # PDFファイルのパスとページラベルの取得
             file_path = doc.metadata.get('file_path', pdf_path)
-            page_label = doc.metadata.get('page_label')
 
-            # OCRキャッシュがない場合、新たにOCR実行
-            if file_path not in ocr_cache:
-                #debug
-                st.write("ocr_try_flag")
-                ocr_cache[file_path] = pdf_to_text_with_ocr_per_page_multi_lang(file_path)
+            # OCRが必要な場合は新たにOCR実行
+            logging.info(f"LlamaIndexでテキストが取得できなかったため、OCRを実行します: {file_path}")
+
+            # OCR処理を実行し、結果をキャッシュに保存
+            ocr_cache[file_path] = pdf_to_text_with_ocr_per_page_multi_lang(file_path)
+
+            # OCR結果が得られない場合
+            if not ocr_cache[file_path]:
+                logging.error(f"OCR処理が失敗しました。空の結果です: {file_path}")
+                continue  # 空の結果はスキップ
 
             # ページ番号取得とOCR結果割り当て
+            page_label = doc.metadata.get('page_label')
             if not page_label:
                 logging.warning(f"ページ番号がないドキュメントを処理中: {doc.metadata}")
                 doc.text = "\n".join(ocr_cache[file_path])
@@ -103,12 +110,12 @@ def extract_text_from_pdf(pdf_path):
                         logging.warning(f"無効なページ番号 {page_number + 1} の指定がありました: {file_path}")
                 except ValueError as e:
                     logging.error(f"ページ番号の解析エラー: {e}")
-                    doc.text = ""
+                    doc.text = ""  # ページ番号取得エラーの場合は空のテキストを保持
 
         return documents
 
     except Exception as e:
-        logging.error(f"PDFテキスト抽出エラー: {e}")
+        logging.error(f"PDFからテキスト抽出中にエラー: {e}")
         return []
 
 #　抽出したテキストからDOI抽出
