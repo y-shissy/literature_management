@@ -30,8 +30,6 @@ import uuid
 import hashlib
 
 # Docmunetクラス設定
-import hashlib
-
 class Document:
     def __init__(self, id_, text, metadata=None, embedding=None):
         self.id_ = id_  # ドキュメント ID
@@ -48,12 +46,18 @@ class Document:
         return hashlib.sha256(doc_str.encode('utf-8')).hexdigest()  # SHA-256ハッシュを使用
 
     def get_metadata_str(self, mode=None):
-        # メタデータを文字列に変換するメソッド
         return str(self.metadata)  # シンプルにメタデータを文字列として返す
 
     def get_content(self, metadata_mode=None):
-        # メタデータモードに依存して、テキストを返す
-        return self.text  # ここでは単純にテキストを返す
+        return self.text  # ドキュメントの内容を返す
+
+    def as_related_node_info(self):
+        # ノードに関連する情報を返すメソッド
+        return {
+            "id": self.get_doc_id(),
+            "text": self.text,
+            "metadata": self.metadata
+        }
 
     def __repr__(self):
         return f"Document(id_='{self.id_}', text='{self.text}', metadata={self.metadata})"
