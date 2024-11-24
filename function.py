@@ -27,7 +27,7 @@ import urllib.parse
 import pytesseract
 from pdf2image import convert_from_path
 import uuid
-
+import hashlib
 
 # Docmunetクラス設定
 class Document:
@@ -39,6 +39,12 @@ class Document:
 
     def get_doc_id(self):
         return self.id_  # Document IDを返す
+
+    def hash(self):
+        # ドキュメントの内容からハッシュ値を計算する
+        # ここでは単純にid_とtext、metadataのハッシュを組み合わせている
+        doc_str = f"{self.id_}:{self.text}:{self.metadata}"
+        return hashlib.sha256(doc_str.encode('utf-8')).hexdigest()  # SHA-256ハッシュを使用
     
     def __repr__(self):
         return f"Document(id_='{self.id_}', text='{self.text}', metadata={self.metadata})"
