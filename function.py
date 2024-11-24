@@ -56,6 +56,7 @@ def extract_text_from_pdf(pdf_path):
     # ドキュメントを開く
     reader = SimpleDirectoryReader(input_files=[pdf_path])
     documents = reader.load_data()
+    st.write(documents)
 
     # OCRキャッシュの初期化
     ocr_cache = {}
@@ -68,21 +69,19 @@ def extract_text_from_pdf(pdf_path):
         # ファイルがキャッシュにない場合，OCRを実行しページごとに結果を保存
         if pdf_path not in ocr_cache:
             ocr_cache[pdf_path] = pdf_to_text_with_ocr_per_page_multi_lang(pdf_path)
-            st.write(ocr_cache[pdf_path])
 
         # OCR結果をドキュメントに割り当て
         for page_number, text in enumerate(ocr_cache[pdf_path]):
             # documentsリストのインデックスを調整（1ページ目が0インデックス）
             if page_number < len(documents):
                 documents[page_number].text = text  # ページ番号に対応するOCR結果を取得
-                st.write("root1")
             else:
                 # documentsが不足している場合には新しいドキュメントを作成
-                st.write("root1")
                 new_doc = Document(text=text)  # Documentクラスのインスタンスを生成
                 documents.append(new_doc)  # 新しいドキュメントを追加
-                st.write(new_doc)
-                st.write(documents)
+
+        
+        st.write(documents)
 
     return documents
 
