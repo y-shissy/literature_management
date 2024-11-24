@@ -315,8 +315,6 @@ def store_metadata_in_db_ai(DB_FILE, metadata, file_path, uploaded_file, drive):
 
         # PDFファイルからすべてのテキストを抽出
         content=extract_text_from_pdf(file_path)
-        st.write(content)
-
         # 抽出したテキストから，要約とキーワードとカテゴリを取得
         summary,keyword_res,category_res=translate_and_summarize(content)
         st.write(summary)
@@ -344,6 +342,7 @@ def store_metadata_in_db_ai(DB_FILE, metadata, file_path, uploaded_file, drive):
             開始ページ=metadata["開始ページ"],
             終了ページ=metadata["終了ページ"],
             年=metadata["年"],
+            要約=summary,
             doi_url=doi_url,
             ファイルリンク=file_link,
             キーワード=keywords_str,
@@ -368,59 +367,6 @@ def store_metadata_in_db_ai(DB_FILE, metadata, file_path, uploaded_file, drive):
         session.close()
 
 
-
-
-
-# メタデータをデータベースに格納する関数（複数ファイル対応）
-def store_metadata_in_db_batch(DB_FILE,metadata,file_link,uploaded_file):
-    # セッションを作成
-    DATABASE_URL=f"sqlite:///{DB_FILE}"
-    engine=create_engine(DATABASE_URL)
-    SessionLocal=sessionmaker(bind=engine)
-    session = SessionLocal()
-    #カテゴリ，キーワード読み込み
-    categories=st.session_state["categories"]
-    keywords=st.session_state["keywords"]
-    
-    try:
-        # DOIがすでに存在するか確認
-        existing_record = session.query(Metadata).filter_by(doi=metadata['doi']).first()
-        
-        if existing_record:
-            st.warning("This DOI is already in the database.")
-            return
-
-        doi_url = f"https://doi.org/{metadata['doi']}"
-
-        # 新しいメタデータレコードを作成
-        new_record = Metadata(
-            doi=metadata['doi'],
-            タイトル=metadata["タイトル"],
-            著者=metadata["著者"],
-            ジャーナル=metadata["ジャーナル"],
-            巻=metadata["巻"],
-            号=metadata["号"],
-            開始ページ=metadata["開始ページ"],
-            終了ページ=metadata["終了ページ"],
-            年=metadata["年"],
-            doi_url=doi_url,
-            ファイルリンク=file_link,
-            Read=False
-        )
-
-        # データベースに追加
-        session.add(new_record)
-        session.commit()
-        st.success("New record added to the database.")
-
-        return  # 成功した場合、処理をここで終了
-
-
-    except Exception as e:
-        st.warning(f"An error occurred: {e}")
-        session.rollback()
-    finally:
-        session.close()
 
 
 
@@ -696,3 +642,9 @@ def create_temp_file(uploaded_file):
     except Exception as e:
         st.error(f"一時ファイル作成エラー: {e}")
         return None, None
+    
+# PDFファイルをダウンロードする関数
+def download_file(drive, file_id):
+    temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")  # 一時ファイルを作成
+    drive.CreateFile({'id': file_id}).GetContentFile(temp_file.name, mimetype='application/pdf')
+    return temp_file.name

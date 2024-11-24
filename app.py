@@ -26,6 +26,8 @@ import urllib.parse
 
 import pytesseract
 from pdf2image import convert_from_path
+# 関数読込
+from function import download_file
 
 # ページ設定
 st.set_page_config(layout="wide")
@@ -258,15 +260,17 @@ def main():
                 selected_index = options[options == selected_option].index[0]
                 selected_file_path = filtered_df.loc[selected_index, 'ファイルリンク']
 
-                # PDFの表示
-                # Google Driveの共有リンクを直接埋め込む形式に変換
+                # Google DriveからファイルIDを抽出
                 if selected_file_path:
-                    # Google DriveのファイルIDを抽出して、iframeに埋め込む
                     file_id = selected_file_path.split("id=")[-1]
-                    pdf_url = f"https://drive.google.com/uc?id={file_id}"
+                    # PDFファイルをダウンロード
+                    pdf_file_path = download_file(drive, file_id)
 
-                    # iframeでPDFを表示
-                    st.markdown(f'<iframe src="{pdf_url}" width="700" height="500"></iframe>', unsafe_allow_html=True)
+                    # PDFを表示
+                    with open(pdf_file_path, "rb") as f:
+                        st.download_button("PDFをダウンロード", f, "temp_pdf.pdf")
+                        st.markdown(f'<iframe src="data:application/pdf;base64,{f.read().encode("base64")}" width="700" height="500"></iframe>', unsafe_allow_html=True)
+
 
     with tabs[1]:
         st.markdown("### PDFアップロード・AI自動要約")
