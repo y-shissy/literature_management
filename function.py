@@ -30,6 +30,8 @@ import uuid
 import hashlib
 
 # Docmunetクラス設定
+import hashlib
+
 class Document:
     def __init__(self, id_, text, metadata=None, embedding=None):
         self.id_ = id_  # ドキュメント ID
@@ -47,8 +49,11 @@ class Document:
 
     def get_metadata_str(self, mode=None):
         # メタデータを文字列に変換するメソッド
-        # モードに応じて異なる出力が必要であればここに条件を書く
         return str(self.metadata)  # シンプルにメタデータを文字列として返す
+
+    def get_content(self, metadata_mode=None):
+        # メタデータモードに依存して、テキストを返す
+        return self.text  # ここでは単純にテキストを返す
 
     def __repr__(self):
         return f"Document(id_='{self.id_}', text='{self.text}', metadata={self.metadata})"
