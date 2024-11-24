@@ -21,6 +21,7 @@ from database import get_session, Metadata
 
 from openai import OpenAI
 from llama_index.core import download_loader, VectorStoreIndex, Settings, SimpleDirectoryReader
+from llama_index import Document
 import tiktoken
 import urllib.parse
 
@@ -36,52 +37,52 @@ def extract_text_from_pdf_pages(pdf_path):
     all_text=reader.load_data()
     return all_text[:2]
 
-# OCR機能を使いPDFからテキスト抽出（ページごとに実行，日本語英語対応）
+# OCR機能を使いPDFからテキスト抽出 (ページごと、日本語・英語対応)
 def pdf_to_text_with_ocr_per_page_multi_lang(pdf_path):
-    #PDFを画像に変換
-    images=convert_from_path(pdf_path)
-    page_texts=[]
+    # PDFを画像に変換
+    images = convert_from_path(pdf_path)
+    page_texts = []
+
+    # 画像ごとにOCRを適用
     for image in images:
-        text=pytesseract.image_to_string(image, lang='jpn+eng')
+        text = pytesseract.image_to_string(image, lang='jpn+eng')  # 日本語＋英語のOCR
         page_texts.append(text)
+
     return page_texts
 
 # PDFから全ページのテキスト抽出(llama_index + pytesseract)
 def extract_text_from_pdf(pdf_path):
-    # ドキュメントを開く
+    # SimpleDirectoryReaderで既存のドキュメントを読み込む
     reader = SimpleDirectoryReader(input_files=[pdf_path])
-    documents = reader.load_data()  # 既存のドキュメントを取得
+    documents = reader.load_data()
 
     ocr_cache = {}
 
-    # documentsが空または全てのdoc.textが空の場合はOCRを実行するフラグ
+    # documentsが空、またはすべてのテキストが空の場合はOCRを実行する
     perform_ocr = not documents or all(doc.text.strip() == "" for doc in documents)
 
-    # documentsが空または全てのdoc.textが空の場合はOCRを適用
     if perform_ocr:
+        # OCR結果をキャッシュして効率化
         if pdf_path not in ocr_cache:
             ocr_cache[pdf_path] = pdf_to_text_with_ocr_per_page_multi_lang(pdf_path)
 
-        for page_number, text in enumerate(ocr_cache[pdf_path]):
-            # メタデータを設定
+        # OCR結果をページごとに処理
+        new_documents = []
+        for page_number, text in enumerate(ocr_cache[pdf_path], start=1):
             metadata = {
-                'page_label': str(page_number + 1),
-                'file_name': os.path.basename(pdf_path),  # ファイル名
-                'file_path': pdf_path  # フルパス
+                "page_label": str(page_number),  # ページ番号
+                "file_name": os.path.basename(pdf_path),  # ファイル名
+                "file_path": pdf_path  # フルパス
             }
 
-            # 新しいドキュメントを作成
-            new_doc = {
-                'text': text,
-                'metadata': metadata,
-                'id': str(uuid.uuid4())  # UUIDを生成
-            }
-            documents.append(new_doc)  # 新しいドキュメントを追加
+            # LlamaIndexのDocumentオブジェクトを作成
+            new_doc = Document(
+                text=text,
+                metadata=metadata,
+            )
+            new_documents.append(new_doc)
 
-    # documentsの各エントリーに必要なメソッドを追加
-    for doc in documents:
-        doc['get_doc_id'] = lambda: doc['id']
-        doc['hash'] = lambda: hashlib.sha256(f"{doc['id']}:{doc['text']}:{doc['metadata']}".encode('utf-8')).hexdigest()
+        documents.extend(new_documents)  # 新しいドキュメントを追加
 
     return documents
 
