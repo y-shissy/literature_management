@@ -26,7 +26,8 @@ import urllib.parse
 
 import pytesseract
 from pdf2image import convert_from_path
-
+from PIL import Image
+import io
 
 
 # 関数定義
@@ -38,15 +39,36 @@ def extract_text_from_pdf_pages(pdf_path):
     all_text=reader.load_data()
     return all_text[:2]
 
-# OCR機能を使いPDFからテキスト抽出（ページごとに実行，日本語英語対応）
+# PDFを画像に変換（PyMuPDFを使用）
+def pdf_to_images(pdf_path):
+    """PDFから各ページを画像として取得"""
+    pdf_document = fitz.open(pdf_path)
+    images = []
+    for page_num in range(len(pdf_document)):
+        page = pdf_document[page_num]
+        pix = page.get_pixmap(dpi=300)  # 300 DPIでレンダリング
+        img = Image.open(io.BytesIO(pix.tobytes("png")))  # PIL画像に変換
+        images.append(img)
+    pdf_document.close()
+    return images
+
+# OCR機能を使いPDFからテキスト抽出
 def pdf_to_text_with_ocr_per_page_multi_lang(pdf_path):
-    #PDFを画像に変換
-    images=convert_from_path(pdf_path)
-    page_texts=[]
-    for image in images:
-        text=pytesseract.image_to_string(image, lang='jpn+eng')
-        page_texts.append(text)
-    return page_texts
+    """PDFを画像に変換し、各ページにOCRを適用してテキスト抽出"""
+    try:
+        images = pdf_to_images(pdf_path)  # PDFを画像に変換
+        page_texts = []
+        for i, image in enumerate(images):
+            text = pytesseract.image_to_string(image, lang='jpn+eng')  # 日本語と英語OCR
+            if text.strip():
+                page_texts.append(text)
+            else:
+                st.warning(f"OCRで空の結果が返されたページ: {i + 1}")
+        return page_texts
+    except Exception as e:
+        st.error(f"OCR処理中にエラーが発生しました: {e}")
+        return []
+
 
 # PDFから全ページのテキスト抽出(llama_index + pytesseract)
 def extract_text_from_pdf(pdf_path):
