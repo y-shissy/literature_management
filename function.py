@@ -42,10 +42,14 @@ class Document:
 
     def hash(self):
         # ドキュメントの内容からハッシュ値を計算する
-        # ここでは単純にid_とtext、metadataのハッシュを組み合わせている
         doc_str = f"{self.id_}:{self.text}:{self.metadata}"
         return hashlib.sha256(doc_str.encode('utf-8')).hexdigest()  # SHA-256ハッシュを使用
-    
+
+    def get_metadata_str(self, mode=None):
+        # メタデータを文字列に変換するメソッド
+        # モードに応じて異なる出力が必要であればここに条件を書く
+        return str(self.metadata)  # シンプルにメタデータを文字列として返す
+
     def __repr__(self):
         return f"Document(id_='{self.id_}', text='{self.text}', metadata={self.metadata})"
         
