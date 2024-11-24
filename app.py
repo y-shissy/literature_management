@@ -100,39 +100,64 @@ def download_db_from_google_drive(drive):
     else:
         st.error(f"{DB_FILE} がGoogle Drive内に見つかりません。新規作成します。")
         initialize_db()
-# キーワードとカテゴリをGoogle Driveに保存する関数
-def save_to_drive(drive, keywords, categories):
+# キーワードをGoogle Driveに保存する関数
+def save_keywords_to_drive(drive, keywords):
     with tempfile.NamedTemporaryFile(delete=False, suffix=".csv") as temp_file:
-        # キーワードとカテゴリをデータフレームに変換
-        df = pd.DataFrame({'キーワード': keywords, 'カテゴリ': categories})
+        df = pd.DataFrame({'キーワード': keywords})
         df.to_csv(temp_file.name, index=False)
 
         # ファイルをGoogle Driveにアップロード
-        file_drive = drive.CreateFile({'title': 'keywords_categories.csv'})
+        file_drive = drive.CreateFile({'title': 'keywords.csv'})
         file_drive.SetContentFile(temp_file.name)
         file_drive.Upload()
-        st.success("キーワードとカテゴリがGoogle Driveに保存されました。")
+        st.success("キーワードがGoogle Driveに保存されました。")
+
+# カテゴリをGoogle Driveに保存する関数
+def save_categories_to_drive(drive, categories):
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".csv") as temp_file:
+        df = pd.DataFrame({'カテゴリ': categories})
+        df.to_csv(temp_file.name, index=False)
+
+        # ファイルをGoogle Driveにアップロード
+        file_drive = drive.CreateFile({'title': 'categories.csv'})
+        file_drive.SetContentFile(temp_file.name)
+        file_drive.Upload()
+        st.success("カテゴリがGoogle Driveに保存されました。")
 
 # Google Driveに指定のファイルが存在するか確認する関数
 def file_exists_in_drive(drive, filename):
     file_list = drive.ListFile({'q': f"title='{filename}' and trashed=false"}).GetList()
     return len(file_list) > 0, file_list[0].get('id') if file_list else None
 
-# Google Driveからキーワードとカテゴリを読み込む関数
-def load_from_drive(drive, filename):
-    keywords = []
-    categories = []
-    exists, file_id = file_exists_in_drive(drive, filename)
+# Google Driveからキーワードを読み込む関数
+def load_keywords_from_drive(drive):
+    exists, file_id = file_exists_in_drive(drive, 'keywords.csv')
     if exists:
         try:
             file = drive.CreateFile({'id': file_id})
-            file.GetContentFile('temp_keywords_categories.csv')
-            df = pd.read_csv('temp_keywords_categories.csv')
-            keywords = df['キーワード'].dropna().tolist()
-            categories = df['カテゴリ'].dropna().tolist()
+            file.GetContentFile('temp_keywords.csv')
+            df = pd.read_csv('temp_keywords.csv')
+            return df['キーワード'].dropna().tolist()
         except Exception as e:
-            st.warning(f"ファイルの読み込み中にエラーが発生しました: {e}")
-    return keywords, categories
+            st.warning(f"キーワードの読み込み中にエラーが発生しました: {e}")
+            return []
+    else:
+        return []  # ファイルが存在しない場合は空のリストを返す
+
+# Google Driveからカテゴリを読み込む関数
+def load_categories_from_drive(drive):
+    exists, file_id = file_exists_in_drive(drive, 'categories.csv')
+    if exists:
+        try:
+            file = drive.CreateFile({'id': file_id})
+            file.GetContentFile('temp_categories.csv')
+            df = pd.read_csv('temp_categories.csv')
+            return df['カテゴリ'].dropna().tolist()
+        except Exception as e:
+            st.warning(f"カテゴリの読み込み中にエラーが発生しました: {e}")
+            return []
+    else:
+        return []  # ファイルが存在しない場合は空のリストを返す
 
     
 # メイン処理
@@ -175,13 +200,17 @@ def main():
         # データベース読み込み
         read_db()
 
-        # キーワード，カテゴリを読み込む
-        keywords_all, categories_all = load_from_drive(st.session_state['drive'], keywords_categories_file)
+        # Google Driveからキーワードとカテゴリを読み込む
+        keywords_all = load_keywords_from_drive(drive)
+        categories_all = load_categories_from_drive(drive)
 
-        # ファイルが存在しない場合は新しく作成
-        if not keywords_all and not categories_all:
-            st.warning("キーワードとカテゴリが見つかりません。新しく作成します。")
-            save_to_drive(st.session_state['drive'], [], [])  # 空のリストを保存して新しいファイルを作成
+        # ファイルが存在しない場合、新しいファイルを作成
+        if not keywords_all:
+            st.warning("キーワードが見つかりません。新しいファイルを作成します。")
+            save_keywords_to_drive(drive, [])  # 空のキーワードリストを保存
+        if not categories_all:
+            st.warning("カテゴリが見つかりません。新しいファイルを作成します。")
+            save_categories_to_drive(drive, [])  # 空のカテゴリリストを保存
 
         #session_stateに保存
         st.session_state["categories_all"]=categories_all
@@ -374,31 +403,29 @@ def main():
         categories_input = st.text_area("追加するカテゴリ(カンマ区切り)", placeholder="新しいカテゴリを入力")
         keywords_input = st.text_area("追加するキーワード(カンマ区切り)", placeholder="新しいキーワードを入力")
 
-        # 現在のリストに新しい入力リストを追加
+        # 入力をリストに変換
         new_categories = [cat.strip() for cat in categories_input.split(',') if cat.strip()]
         new_keywords = [kw.strip() for kw in keywords_input.split(',') if kw.strip()]
 
         # 保存ボタン
         if st.button("保存"):
-            # 既存のリストに新しいカテゴリとキーワードを追加
-            updated_categories = list(set(categories_all) | set(new_categories))
-            updated_keywords = list(set(keywords_all) | set(new_keywords))
+            if new_categories:
+                # 既存のカテゴリに新しいカテゴリを追加
+                save_categories_to_drive(drive, categories_all + new_categories)
+            if new_keywords:
+                # 既存のキーワードに新しいキーワードを追加
+                save_keywords_to_drive(drive, keywords_all + new_keywords)
 
-            # Google Driveに保存
-            save_to_drive(st.session_state['drive'], updated_keywords, updated_categories)
-
-            # 保存後に新しいリストを表示
+            # 更新後のリストを表示
             st.success("新しいキーワードとカテゴリが保存されました。")
 
             st.markdown("### 更新されたカテゴリ")
-            for category in updated_categories:
+            for category in categories_all + new_categories:
                 st.write(category)
 
             st.markdown("### 更新されたキーワード")
-            for keyword in updated_keywords:
+            for keyword in keywords_all + new_keywords:
                 st.write(keyword)
-            st.write(keyword)
-
 if __name__ == "__main__":
     # アプリケーションを実行
     main()
