@@ -28,7 +28,7 @@ import pytesseract
 from pdf2image import convert_from_path
 # 関数読込
 
-from function import store_metadata_in_db, handle_pdf_upload,store_metadata_in_db_ai,download_file,extract_text_from_pdf,translate_and_summarize
+from function import store_metadata_in_db, handle_pdf_upload,store_metadata_in_db_ai,download_file,extract_text_from_pdf,translate_and_summarize,upload_db_to_google_drive
 
 # ページ設定
 st.set_page_config(
@@ -132,6 +132,8 @@ def main():
         st.session_state["df"]=df
         st.success("変更が保存されました")
 
+        # Google Driveへのデータベースアップロード
+        upload_db_to_google_drive(DB_FILE, drive)
 
 
 
