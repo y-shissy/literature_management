@@ -39,15 +39,63 @@ DB_FILE = "literature_database.db"
 # キーワード，カテゴリ格納ファイル
 keywords_categories_file= 'keywords_categories.csv'
 
-# Google Drive 認証設定
-def google_drive_auth(creds_file_path):
-    gauth = GoogleAuth()
-    gauth.LoadCredentialsFile(creds_file_path)
-    if gauth.access_token_expired:
-        gauth.Refresh()
-    else:
-        gauth.Authorize()
-    return gauth, GoogleDrive(gauth)
+# 初期化処理
+def initialize_app():
+    if "initialized" in st.session_state:
+        return
+
+    # Google Drive 認証
+    if "drive" not in st.session_state:
+        uploaded_creds_file = st.file_uploader("認証情報ファイル (`mycreds.txt`) をアップロード", type=["txt"])
+        if uploaded_creds_file:
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".txt") as temp_creds_file:
+                temp_creds_file.write(uploaded_creds_file.read())
+                temp_creds_path = temp_creds_file.name
+            gauth = GoogleAuth()
+            gauth.LoadCredentialsFile(temp_creds_path)
+            if gauth.access_token_expired:
+                gauth.Refresh()
+            else:
+                gauth.Authorize()
+            drive = GoogleDrive(gauth)
+            st.session_state["drive"] = drive
+        else:
+            st.warning("Google Drive認証ファイルをアップロードしてください。")
+            st.stop()
+
+    # データベース確認と読み込み
+    if not os.path.exists(DB_FILE):
+        st.warning(f"{DB_FILE} が見つかりません。新しいデータベースを作成します。")
+        initialize_db()
+
+    try:
+        conn = sqlite3.connect(DB_FILE)
+        df = pd.read_sql("SELECT * FROM metadata", conn)
+    except sqlite3.OperationalError:
+        st.warning("データベースが空です。新しいデータベースを作成します。")
+        initialize_db()
+        df = pd.DataFrame()
+
+    st.session_state["df"] = df
+
+    # Google Driveからキーワードとカテゴリを読み込み
+    keywords_all = load_keywords_from_drive(st.session_state["drive"])
+    categories_all = load_categories_from_drive(st.session_state["drive"])
+
+    # ファイルが存在しない場合、新しいファイルを作成
+    if not keywords_all:
+        st.warning("キーワードが見つかりません。新しいファイルを作成します。")
+        save_keywords_to_drive(st.session_state["drive"], [])
+    if not categories_all:
+        st.warning("カテゴリが見つかりません。新しいファイルを作成します。")
+        save_categories_to_drive(st.session_state["drive"], [])
+
+    # キーワード・カテゴリをセッション状態に保存
+    st.session_state["keywords_all"] = keywords_all
+    st.session_state["categories_all"] = categories_all
+
+    # 初期化フラグを設定
+    st.session_state["initialized"] = True
 
 # SQLiteデータベースを初期化
 def initialize_db():
@@ -89,17 +137,6 @@ def read_db():
             st.session_state["df"] = df
         except Exception as e:
             st.error(f"データの読み込み中にエラーが発生しました：{e}")
-
-# Google DriveからSQLiteデータベースをダウンロード
-def download_db_from_google_drive(drive):
-    file_list = drive.ListFile({'q': f"title='{DB_FILE}' and trashed=false"}).GetList()
-    if file_list:
-        gfile = file_list[0]  # 最初のファイルを取得
-        gfile.GetContentFile(DB_FILE)  # ローカルにデータベースを保存
-        st.success(f"{DB_FILE} をGoogle Driveからダウンロードしました。")
-    else:
-        st.error(f"{DB_FILE} がGoogle Drive内に見つかりません。新規作成します。")
-        initialize_db()
 
 
 # キーワードをGoogle Driveに保存する関数
@@ -192,58 +229,13 @@ def load_categories_from_drive(drive):
 def main():
     st.title(":book:文献管理アプリ")
 
-    # 認証情報ファイルのアップロード
-    if "drive" not in st.session_state:
-        uploaded_creds_file = st.file_uploader("認証情報ファイル (`mycreds.txt`) をアップロード", type=["txt"])
-
-        if uploaded_creds_file:
-            # 一時ファイルとして`mycreds.txt`を保存
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".txt") as temp_creds_file:
-                temp_creds_file.write(uploaded_creds_file.read())
-                temp_creds_path = temp_creds_file.name
-
-            # Google Drive 認証
-            try:
-                gauth, drive = google_drive_auth(temp_creds_path)
-                st.session_state['drive'] = drive  # 認証したDriveオブジェクトをsession_stateに保存
-                st.success("Google Drive認証に成功しました。")
-            except Exception as e:
-                st.error(f"Google Drive認証に失敗しました: {e}")
-                st.stop()
-        else:
-            st.warning("Google Driveの認証には`mycreds.txt`ファイルをアップロードしてください。")
-            st.stop()
-    else:
-        st.success("すでにGoogle Driveに認証されています。")
-
-
+    # 初期化
+    initialize_app()
 
     # タブ別表示
     items=["データベース表示","文献追加","ナレッジ検索","設定"]
     tabs=st.tabs(items)
     with tabs[0]:
-
-        # Google Driveからデータベースをダウンロード，データが無い場合は初期化
-        download_db_from_google_drive(st.session_state['drive'])
-        # データベース読み込み
-        read_db()
-
-        # Google Driveからキーワードとカテゴリを読み込む
-        keywords_all = load_keywords_from_drive(st.session_state['drive'])
-        categories_all = load_categories_from_drive(st.session_state['drive'])
-
-        # ファイルが存在しない場合、新しいファイルを作成
-        if not keywords_all:
-            st.warning("キーワードが見つかりません。新しいファイルを作成します。")
-            save_keywords_to_drive(st.session_state['drive'], [])  # 空のキーワードリストを保存
-        if not categories_all:
-            st.warning("カテゴリが見つかりません。新しいファイルを作成します。")
-            save_categories_to_drive(st.session_state['drive'], [])  # 空のカテゴリリストを保存
-
-        #session_stateに保存
-        st.session_state["categories_all"]=categories_all
-        st.session_state["keywords_all"]=keywords_all
-
 
         # カテゴリカラムのユニークな値を抽出
         unique_category = st.session_state["df"]["カテゴリ"].unique()
@@ -309,7 +301,7 @@ def main():
                 "カテゴリ",
                 help="カテゴリ",
                 width="medium",
-                options=categories_all,
+                options=st.session_state["categories_all"],
                 required=True,
             )}
             # ユーザーが行を追加・削除できるようにする
@@ -423,12 +415,12 @@ def main():
 
         with col1:
             st.markdown("##### カテゴリ一覧")
-            for category in categories_all:
+            for category in st.session_state["categories_all"]:
                 st.write(category)
 
         with col2:
             st.markdown("##### キーワード一覧")
-            for keyword in keywords_all:
+            for keyword in st.session_state["keywords_all"] :
                 st.write(keyword)
 
         # テキストエリアで追加の入力を受け付け
@@ -442,20 +434,20 @@ def main():
 
             if new_categories:
                 # 既存のカテゴリに新しいカテゴリを追加
-                save_categories_to_drive(st.session_state['drive'], categories_all + new_categories)
+                save_categories_to_drive(st.session_state['drive'], st.session_state["categories_all"] + new_categories)
             if new_keywords:
                 # 既存のキーワードに新しいキーワードを追加
-                save_keywords_to_drive(st.session_state['drive'], keywords_all + new_keywords)
+                save_keywords_to_drive(st.session_state['drive'], st.session_state["keywords_all"]  + new_keywords)
 
             # 更新後のリストを表示
             st.success("新しいカテゴリとキーワード保存されました。")
 
             st.markdown("### 更新されたカテゴリ一覧")
-            for category in categories_all + new_categories:
+            for category in st.session_state["categories_all"] + new_categories:
                 st.write(category)
 
             st.markdown("### 更新されたキーワード一覧")
-            for keyword in keywords_all + new_keywords:
+            for keyword in st.session_state["keywords_all"]  + new_keywords:
                 st.write(keyword)
 
 if __name__ == "__main__":
