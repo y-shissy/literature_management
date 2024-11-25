@@ -65,24 +65,65 @@ def query_all_indices(prompt, indices):
 def format_results(results):
     """結果を整形して表示"""
     # 関連性の高い順にソート
-    sorted_results = sorted(results, key=lambda x: len(x["content"]), reverse=True)[:5]
+    sorted_results = sorted(results, key=lambda x: len(x["content"]), reverse=True)
 
-    st.subheader("📌 最も関連性の高い結果")
     for res in sorted_results:
-        st.markdown(f"**文献名**: {res['source']}")
-        st.markdown(res["content"])
-        if "metadata" in res:
-            st.markdown(f"**参照元ページ**: {res['metadata']}")
+        with st.container():
+            # カード風の見た目を作成
+            st.markdown("---")  # 区切り線
+            st.markdown(f"### 📘 文献名: {res['source']}")
+            st.markdown(res["content"])
+
+            # PDFファイルへのリンクを追加
+            if "metadata" in res and "file_name" in res["metadata"]:
+                file_name = res["metadata"]["file_name"]
+                # Google Drive のリンク生成
+                pdf_link = f"https://drive.google.com/file/d/{file_name}/view"
+                st.markdown(f"[📄 文献を開く]({pdf_link})")
+
+                # PDFのプレビュー機能
+                if st.button(f"📖 プレビュー ({file_name})", key=file_name):
+                    pdf_file_path = f"/path/to/local/pdf/{file_name}"  # 実際のパスに置き換えてください
+                    pdf_viewer(pdf_file_path)
 
     if len(results) > 5:
         with st.expander("📚 他の関連文献を見る"):
             for res in results[5:]:
-                st.markdown(f"**文献名**: {res['source']}")
-                st.markdown(res["content"])
+                with st.container():
+                    st.markdown("---")
+                    st.markdown(f"### 📘 文献名: {res['source']}")
+                    st.markdown(res["content"])
+
+                    # PDFファイルへのリンクを追加
+                    if "metadata" in res and "file_name" in res["metadata"]:
+                        file_name = res["metadata"]["file_name"]
+                        pdf_link = f"https://drive.google.com/file/d/{file_name}/view"
+                        st.markdown(f"[📄 文献を開く]({pdf_link})")
+
+                        if st.button(f"📖 プレビュー ({file_name})", key=f"exp_{file_name}"):
+                            pdf_file_path = f"/path/to/local/pdf/{file_name}"
+                            pdf_viewer(pdf_file_path)
+
+
+def pdf_viewer(pdf_file_path):
+    """PDFをプレビューする関数"""
+    try:
+        with open(pdf_file_path, "rb") as pdf_file:
+            st.download_button(
+                label="📥 PDFをダウンロード",
+                data=pdf_file,
+                file_name=os.path.basename(pdf_file_path),
+                mime="application/pdf",
+            )
+            # Streamlit 標準のPDFプレビューを使用
+            st.pdf(pdf_file)
+    except FileNotFoundError:
+        st.error("PDFファイルが見つかりませんでした。")
+
 
 def main():
     st.title(":robot_face: AI Chat")
-    st.markdown("### 文献PDF情報から情報を検索")
+    st.markdown("### 文献PDF情報から検索")
 
     if not st.session_state["loaded_indices"]:
         with st.spinner("インデックスを読み込んでいます..."):
