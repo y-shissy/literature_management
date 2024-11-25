@@ -64,21 +64,40 @@ def query_all_indices(prompt, indices):
 
 def format_results(results):
     """結果を整形して表示"""
-    # 関連性の高い順にソート
-    sorted_results = sorted(results, key=lambda x: len(x["content"]), reverse=True)[:5]
+    # 関連性の高い順にソートして上位5件のみ取得
+    sorted_results = sorted(results, key=lambda x: len(x["content"].get("response", "")), reverse=True)[:5]
 
     st.subheader("📌 最も関連性の高い結果")
     for res in sorted_results:
-        st.markdown(f"**文献名**: {res['source']}")
-        st.markdown(res["content"])
-        if "metadata" in res:
-            st.markdown(f"**参照元ページ**: {res['metadata']}")
+        response_text = res["content"].get("response", "内容を取得できませんでした。")
+        metadata = res.get("metadata", {})
+        source = res["source"]
+
+        st.markdown(f"### 文献名: {source}")
+        st.markdown(f"**回答内容:**\n{response_text}")
+
+        # メタデータがあれば表示
+        if metadata:
+            page_label = metadata.get("page_label", "不明")
+            file_name = metadata.get("file_name", "不明")
+            st.markdown(f"**参照元ページ:** {page_label}")
+            st.markdown(f"**ファイル名:** {file_name}")
 
     if len(results) > 5:
         with st.expander("📚 他の関連文献を見る"):
             for res in results[5:]:
-                st.markdown(f"**文献名**: {res['source']}")
-                st.markdown(res["content"])
+                response_text = res["content"].get("response", "内容を取得できませんでした。")
+                metadata = res.get("metadata", {})
+                source = res["source"]
+
+                st.markdown(f"### 文献名: {source}")
+                st.markdown(f"**回答内容:**\n{response_text}")
+
+                if metadata:
+                    page_label = metadata.get("page_label", "不明")
+                    file_name = metadata.get("file_name", "不明")
+                    st.markdown(f"**参照元ページ:** {page_label}")
+                    st.markdown(f"**ファイル名:** {file_name}")
 
 def main():
     st.title(":robot_face: AI Chat")
