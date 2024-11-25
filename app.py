@@ -65,8 +65,12 @@ def initialize_app():
 
     # データベース確認と読み込み
     if not os.path.exists(DB_FILE):
-        st.warning(f"{DB_FILE} が見つかりません。新しいデータベースを作成します。")
-        initialize_db()
+        db_temp_path = download_db_from_drive(st.session_state["drive"], DB_FILE)
+        if db_temp_path:
+            shutil.copy(db_temp_path, DB_FILE)  # ダウンロードしたファイルをアプリケーションの作業ディレクトリにコピー
+        else:
+            st.warning(f"{DB_FILE} がGoogle Driveに見つかりません。新しいデータベースを作成します。")
+            initialize_db()
 
     try:
         conn = sqlite3.connect(DB_FILE)
@@ -77,6 +81,7 @@ def initialize_app():
         df = pd.DataFrame()
 
     st.session_state["df"] = df
+
 
     # Google Driveからキーワードとカテゴリを読み込み
     keywords_all = load_keywords_from_drive(st.session_state["drive"])
@@ -124,6 +129,21 @@ def initialize_db():
     engine=create_engine(DATABASE_URL)
     Base.metadata.create_all(engine)
     SessionLocal=sessionmaker(bind=engine)
+
+def download_db_from_drive(drive, db_file_name):
+    exists, file_id = file_exists_in_drive(drive, db_file_name)
+    if not exists:
+        st.error(f"{db_file_name} がGoogle Driveに見つかりません。")
+        return None
+
+    try:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".db") as temp_file:
+            file = drive.CreateFile({'id': file_id})
+            file.GetContentFile(temp_file.name)
+            return temp_file.name  # ダウンロードしたファイルのパスを返す
+    except Exception as e:
+        st.error(f"Google Driveからデータベースをダウンロード中にエラーが発生しました: {e}")
+        return None
 
 # SQLiteデータベースを読み込む
 def read_db():
