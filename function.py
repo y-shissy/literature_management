@@ -543,7 +543,7 @@ def translate_and_summarize(text):
         return chunks
 
     # テキスト分割（長すぎる場合）
-    max_text_tokens = token_limit - 1000  # プロンプトなどの余裕を確保
+    max_text_tokens = token_limit - 1000  # プロンプトや応答分の余裕を確保
     if len(encoding.encode(text)) > max_text_tokens:
         text_chunks = split_text(text, max_text_tokens)
     else:
@@ -566,11 +566,11 @@ def translate_and_summarize(text):
         st.error(f"要約エラー: {e}")
         summary = "要約に失敗しました。"
 
-    # キーワード抽出
+    # キーワード抽出（要約から）
     try:
         keyword_prompt = (
-            f"次の文章に関連するキーワードを，以下のキーワードリストの語句を参考に、カンマ区切りのリストとして出力してください:\n"
-            f"文章: {text[:1000]}  # キーワード用に短縮\n\n"
+            f"次の要約に関連するキーワードを、以下のキーワードリストを参考にしてカンマ区切りで出力してください:\n"
+            f"要約: {summary}\n\n"
             f"キーワードリスト: {', '.join(keywords_all)}\n\n"
             "関連するキーワードをカンマで区切って出力してください:"
         )
@@ -588,7 +588,7 @@ def translate_and_summarize(text):
     # カテゴリ選択
     try:
         category_prompt = (
-            f"以下のカンマ区切りのカテゴリの語句から，この要約に最も近い語句を一つ選んで出力してください:\n"
+            f"以下のカテゴリリストから、この要約に最も関連する語句を一つ選んで出力してください:\n"
             f"要約: {summary}\n\n"
             f"カテゴリ: {', '.join(categories_all)}\n\n"
         )
