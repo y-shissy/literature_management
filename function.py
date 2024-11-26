@@ -517,83 +517,93 @@ def get_abstract_from_url(url):
         return None
     
 
-# openai apiを利用したテキストの翻訳・
 def translate_and_summarize(text):
-    #カテゴリ，キーワード読み込み
-    categories_all=st.session_state["categories_all"]
-    keywords_all=st.session_state["keywords_all"]
-    # 日本語に翻訳 + 要約（OpenAIを使用）
+    # カテゴリ，キーワード読み込み
+    categories_all = st.session_state["categories_all"]
+    keywords_all = st.session_state["keywords_all"]
+
+    # OpenAIクライアントの初期化
     openai_api_key = st.secrets["openai_api_key"]
-    client = OpenAI(
-        # This is the default and can be omitted
-        api_key=openai_api_key,
-    )
+    client = OpenAI(api_key=openai_api_key)
 
-    #プロンプト 要約
-    prompt=f"次の論文のテキスト内容を日本語で簡潔に要約してください:\n\n{text[:1500]}"
+    # トークン制限設定
+    model_name = "gpt-4o-mini"
+    token_limit = 4000  # モデルの最大トークン数
+    encoding = tiktoken.encoding_for_model(model_name)
 
-    # GPT-4o-mini用
-    response = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[
-            {
-                "role": "user",
-                "content": [
-                    {"type": "text", "text": prompt},
+    def split_text(text, max_tokens):
+        """
+        テキストを指定されたトークン数以内に分割する。
+        """
+        tokens = encoding.encode(text)
+        chunks = [
+            encoding.decode(tokens[i:i + max_tokens])
+            for i in range(0, len(tokens), max_tokens)
+        ]
+        return chunks
+
+    # テキスト分割（長すぎる場合）
+    max_text_tokens = token_limit - 1000  # プロンプトなどの余裕を確保
+    if len(encoding.encode(text)) > max_text_tokens:
+        text_chunks = split_text(text, max_text_tokens)
+    else:
+        text_chunks = [text]
+
+    # 要約処理
+    summaries = []
+    try:
+        for chunk in text_chunks:
+            prompt = f"次の論文のテキスト内容を日本語で簡潔に要約してください:\n\n{chunk}"
+            response = client.chat.completions.create(
+                model=model_name,
+                messages=[
+                    {"role": "user", "content": prompt}
                 ],
-            }
-        ],
-    )
+            )
+            summaries.append(response.choices[0].message.content.strip())
+        summary = " ".join(summaries)
+    except OpenAIError as e:
+        st.error(f"要約エラー: {e}")
+        summary = "要約に失敗しました。"
 
-    summary = response.choices[0].message.content.strip()
+    # キーワード抽出
+    try:
+        keyword_prompt = (
+            f"次の文章に関連するキーワードを，以下のキーワードリストの語句を参考に、カンマ区切りのリストとして出力してください:\n"
+            f"文章: {text[:1000]}  # キーワード用に短縮\n\n"
+            f"キーワードリスト: {', '.join(keywords_all)}\n\n"
+            "関連するキーワードをカンマで区切って出力してください:"
+        )
+        keyword_response = client.chat.completions.create(
+            model=model_name,
+            messages=[
+                {"role": "user", "content": keyword_prompt}
+            ],
+        )
+        keyword_res = [kw.strip() for kw in keyword_response.choices[0].message.content.strip().split("、")]
+    except OpenAIError as e:
+        st.error(f"キーワード抽出エラー: {e}")
+        keyword_res = []
 
-    
-    #プロンプト 関連するキーワードを選択
-    keyword_prompt = (
-        f"次の文章に関連するキーワードを，以下のキーワードリストの語句を参考に、カンマ区切りのリストとして出力してください:\n"
-        f"文章: {text}\n\n"
-        f"キーワードリスト: {', '.join(keywords_all)}\n\n"
-        "関連するキーワードをカンマで区切って出力してください:"
-    )
+    # カテゴリ選択
+    try:
+        category_prompt = (
+            f"以下のカンマ区切りのカテゴリの語句から，この要約に最も近い語句を一つ選んで出力してください:\n"
+            f"要約: {summary}\n\n"
+            f"カテゴリ: {', '.join(categories_all)}\n\n"
+        )
+        category_response = client.chat.completions.create(
+            model=model_name,
+            messages=[
+                {"role": "user", "content": category_prompt}
+            ],
+        )
+        category_res = category_response.choices[0].message.content.strip()
+    except OpenAIError as e:
+        st.error(f"カテゴリ選択エラー: {e}")
+        category_res = "カテゴリ選択に失敗しました。"
 
-    keyword_response = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[
-            {
-                "role": "user",
-                "content": [
-                    {"type": "text", "text": keyword_prompt},
-                ],
-            }
-        ],
-    )
-    # キーワードをカンマで分割
-    keyword_res = [kw.strip() for kw in keyword_response.choices[0].message.content.strip().split('、')]
-
-    #プロンプト 分類を選択
-    category_prompt = (
-        f"以下のカンマ区切りのカテゴリの語句から，この要約に最も近い語句を一つ選んで出力してください:\n"
-        f"要約: {summary}\n\n"
-        f"カテゴリ: {', '.join(categories_all)}\n\n"
-    )
-
-    category_response = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[
-            {
-                "role": "user",
-                "content": [
-                    {"type": "text", "text": category_prompt},
-                ],
-            }
-        ],
-    )
-
-    category_res = category_response.choices[0].message.content.strip()
-
-    return summary, keyword_res,category_res
-
-
+    return summary, keyword_res, category_res
 
 def upload_to_google_drive(drive, file_path, filename):
     try:
