@@ -531,6 +531,14 @@ def translate_and_summarize(text):
     token_limit = 4000  # モデルの最大トークン数
     encoding = tiktoken.encoding_for_model(model_name)
 
+    # テキストの前処理
+    if not isinstance(text, str):
+        text = str(text)  # テキストを強制的に文字列に変換
+    
+    # 特殊文字・制御文字の除去
+    text = re.sub(r'[\r\n\t]+', ' ', text)  # 改行・タブをスペースに置換
+    text = re.sub(r'[^\x20-\x7E\u3000-\u9FFF]+', '', text)  # ASCII範囲外と日本語以外を除去
+
     def split_text(text, max_tokens):
         """
         テキストを指定されたトークン数以内に分割する。
@@ -543,11 +551,15 @@ def translate_and_summarize(text):
         return chunks
 
     # テキスト分割（長すぎる場合）
-    max_text_tokens = token_limit - 1000  # プロンプトや応答分の余裕を確保
-    if len(encoding.encode(text)) > max_text_tokens:
-        text_chunks = split_text(text, max_text_tokens)
-    else:
-        text_chunks = [text]
+    try:
+        max_text_tokens = token_limit - 1000  # プロンプトや応答分の余裕を確保
+        if len(encoding.encode(text)) > max_text_tokens:
+            text_chunks = split_text(text, max_text_tokens)
+        else:
+            text_chunks = [text]
+    except Exception as e:
+        st.error(f"トークン分割エラー: {e}")
+        return "トークン分割に失敗しました。", [], "エラー"
 
     # 要約処理
     summaries = []
