@@ -79,6 +79,37 @@ def main():
                     # データベース格納関数を呼び出し
                     store_metadata_in_db(DB_FILE, metadata, file_path, uploaded_file, drive)
 
+    elif option == '文献情報手動入力':
+        st.markdown("### 文献情報の手動入力")
+        with st.form(key='manual_metadata_form'):
+            title = st.text_input("タイトル")
+            authors = st.text_input("著者")
+            journal = st.text_input("ジャーナル")
+            volume = st.text_input("巻")
+            number = st.text_input("号")
+            start_page = st.text_input("開始ページ")
+            end_page = st.text_input("終了ページ")
+            year = st.text_input("年")
+            doi_input = st.text_input("DOIを入力してください")
+            memo = st.text_area("メモ")
+            read = st.checkbox("既読の場合チェック", value=False)
+            submit_button = st.form_submit_button(label='保存')
+
+            if submit_button:
+                # 入力内容からメタデータを作成
+                metadata = {
+                    'doi': doi_input,
+                    'タイトル': title,
+                    '著者': authors,
+                    'ジャーナル': journal,
+                    '巻': volume,
+                    '号': number,
+                    '開始ページ': start_page,
+                    '終了ページ': end_page,
+                    '年': year,
+                }
+                # データベース格納関数を呼び出し
+                store_metadata_in_db(DB_FILE, metadata, None, None, drive)
 
 
 
