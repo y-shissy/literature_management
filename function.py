@@ -527,8 +527,8 @@ def translate_and_summarize(text):
     client = OpenAI(api_key=openai_api_key)
 
     # トークン制限設定
-    model_name = "gpt-4"
-    token_limit = 4000
+    model_name = "gpt-4o-mini"
+    token_limit = 4000  # モデルの最大トークン数
     encoding = tiktoken.encoding_for_model(model_name)
 
     # テキストの前処理
