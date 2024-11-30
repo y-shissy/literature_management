@@ -62,6 +62,9 @@ def initialize_app():
                 else:
                     st.warning("リフレッシュトークンが存在しません。再認証が必要です。")
                     st.stop()
+            elif not gauth.access_token:  # アクセストークンがない場合
+                st.warning("アクセストークンが存在しません。再認証が必要です。")
+                st.stop()
             else:
                 gauth.Authorize()  # 初回認証またはトークンが有効な場合の処理
 
@@ -83,15 +86,22 @@ def initialize_app():
     else:
         # セッションにすでにDriveが存在する場合、認証情報を再利用
         gauth = GoogleAuth()
-        gauth.credentials = {
-            "access_token": st.session_state["credentials"]["access_token"],
-            "refresh_token": st.session_state["credentials"]["refresh_token"],
-            "client_id": st.session_state["credentials"]["client_id"],
-            "client_secret": st.session_state["credentials"]["client_secret"]
-        }
-        gauth.Authorize()
-        st.session_state["drive"] = GoogleDrive(gauth)
-        
+
+        credentials = st.session_state.get("credentials")
+
+        if credentials:
+            gauth.credentials = {
+                "access_token": credentials["access_token"],
+                "refresh_token": credentials["refresh_token"],
+                "client_id": credentials["client_id"],
+                "client_secret": credentials["client_secret"]
+            }
+            gauth.Authorize()
+            st.session_state["drive"] = GoogleDrive(gauth)
+        else:
+            st.warning("認証情報が見つかりません。再認証が必要です。")
+            st.stop()
+            
     # データベース確認と読み込み
     if not os.path.exists(DB_FILE):
         db_temp_path = download_db_from_drive(st.session_state["drive"], DB_FILE)
