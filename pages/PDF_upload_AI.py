@@ -44,7 +44,7 @@ def main():
     st.markdown("### PDFアップロード・AI自動要約")
     DB_FILE = "literature_database.db"
 
-    option = st.radio("操作を選択してください", ('DOI自動判別+要約','DOI自動判別', 'DOI手動入力','文献情報手動入力'))
+    option = st.radio("操作を選択してください", ('DOI自動判別+要約','DOI自動判別', 'DOI手動入力+要約','文献情報手動入力+要約'))
 
     if option == 'DOI自動判別+要約':
         uploaded_files = st.file_uploader("PDFをアップロード (複数選択可能)", type=["pdf"], accept_multiple_files=True)
@@ -68,7 +68,7 @@ def main():
                 # データベース格納関数を呼び出し
                 store_metadata_in_db(DB_FILE, metadata, file_path, uploaded_file, drive)
 
-    elif option == 'DOI手動入力':
+    elif option == 'DOI手動入力+要約':
         doi_input = st.text_input("DOIを入力してください")
         if doi_input:
             uploaded_file = st.file_uploader("PDFをアップロード", type=["pdf"])
@@ -77,10 +77,10 @@ def main():
                 metadata, file_path = handle_pdf_upload(uploaded_file, auto_doi=False, manual_doi=doi_input)
                 if metadata and file_path:
                     # データベース格納関数を呼び出し
-                    store_metadata_in_db(DB_FILE, metadata, file_path, uploaded_file, drive)
+                    store_metadata_in_db_ai(DB_FILE, metadata, file_path, uploaded_file, drive)
 
 
-    elif option == '文献情報手動入力':
+    elif option == '文献情報手動入力+要約':
         uploaded_file = st.file_uploader("PDFをアップロード", type=["pdf"])
         if uploaded_file:
             st.markdown("### 文献情報の手動入力")
@@ -120,6 +120,6 @@ def main():
                     }
 
                     # データベース格納関数を呼び出し
-                    store_metadata_in_db(DB_FILE, metadata, temp_file_path, uploaded_file, drive)
+                    store_metadata_in_db_ai(DB_FILE, metadata, temp_file_path, uploaded_file, drive)
 if __name__ == "__main__":
     main()
