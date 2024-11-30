@@ -51,6 +51,23 @@ def main():
     edited_df = st.session_state["df"].copy()
     default_rows = edited_df[edited_df['要約'].isna() | (edited_df['要約'] == '')]['id']
 
+    # 表示画面用の column_config 設定
+    column_config = {
+        'doi_url': st.column_config.LinkColumn('Web', display_text='URL'),
+        'Read': st.column_config.CheckboxColumn('Read'),
+        'キーワード': st.column_config.ListColumn("キーワード", help="キーワード", width="medium")
+    }
+    
+
+    # 特定カラムを表示上除外してデータを表示
+    st.dataframe(
+        edited_df.drop(columns=['開始ページ', '終了ページ', 'ファイルリンク']),
+        column_config=column_config, 
+        hide_index=True, 
+        use_container_width=True
+    )
+
+
     # 文献選択（タイトルを表示するようフォーマット）
     selected_rows = st.multiselect(
         "要約を行う文献を選択してください",
