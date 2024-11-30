@@ -103,23 +103,34 @@ def process_pdf(pdf_path):
     combined_text = ' '.join([doc.text for doc in first_text]).replace('\n', ' ')  # 改行をスペースに置換
     first_doi = extract_doi(combined_text)
     return first_doi,first_text
+
 # DOIから情報を抽出
 def get_metadata_from_doi(doi):
-    metadata = {}
+    result = {}
 
     # DOIを格納
-    metadata['doi'] = doi  # DOIを最初に格納
+    result['doi'] = doi  # DOIを最初に格納
 
     # Crossref APIを利用
     crossref_url = f"https://api.crossref.org/works/{doi}"
     try:
         response = requests.get(crossref_url, timeout=10, verify=False)
-        response.raise_for_status()  # ステータスコードが200以外の場合は例外を投げる
+        response.raise_for_status()
         data = response.json()
-        metadata['crossref'] = data.get('message', {})
+
+        # Crossrefからの情報取得
+        crossref_meta = data.get('message', {})
+        if crossref_meta:
+            result['タイトル'] = next((title for title in crossref_meta.get('title', ['Not found']) if isinstance(title, str)), 'Not found')
+            result['著者'] = ', '.join(f"{author['family']} {author['given']}" for author in crossref_meta.get('author', []))
+            result['ジャーナル'] = crossref_meta.get('container-title', ['Not found'])[0]
+            result['年'] = crossref_meta.get('published-print', {}).get('date-parts', [[None]])[0][0] or 'Not found'
+            result['巻'] = crossref_meta.get('volume', 'Not found')
+            result['号'] = crossref_meta.get('issue', 'Not found')
+            result['開始ページ'] = crossref_meta.get('page', 'Not found').split('-')[0] if 'page' in crossref_meta else 'Not found'
+            result['終了ページ'] = crossref_meta.get('page', 'Not found').split('-')[-1] if 'page' in crossref_meta else 'Not found'
     except requests.RequestException as e:
         st.warning(f"Crossref API error: {e}")
-        metadata['crossref'] = None
 
     # JALC REST APIを利用
     jalc_url = f"https://api.japanlinkcenter.org/dois/{doi}"
@@ -127,24 +138,16 @@ def get_metadata_from_doi(doi):
         response = requests.get(jalc_url, timeout=10, verify=False)
         response.raise_for_status()
         data = response.json()['data']
-        metadata['jalc'] = data
-    except requests.RequestException as e:
-        st.warning(f"JALC API error: {e}")
-        metadata['jalc'] = None
 
-    # メタデータの整形
-    result = {}
-
-    # JALCからの情報を優先して取得
-    if metadata['jalc']:
-        try:
-            title_info = next((title for title in metadata['jalc'].get('title_list', []) if title.get('lang') == 'ja'), None)
+        # JALCからの情報取得
+        if data:
+            title_info = next((title for title in data.get('title_list', []) if title.get('lang') == 'ja'), None)
             if title_info:
                 result['タイトル'] = title_info['title']
             else:
-                result['タイトル'] = next((title['title'] for title in metadata['jalc'].get('title_list', [])), 'Not found')
+                result['タイトル'] = next((title['title'] for title in data.get('title_list', [])), 'Not found')
 
-            authors_info = metadata['jalc'].get('creator_list', [])
+            authors_info = data.get('creator_list', [])
             result['著者'] = ', '.join(f"{name['last_name']} {name['first_name']}" 
                                         for author in authors_info 
                                         for name in author.get('names', []) 
@@ -155,40 +158,24 @@ def get_metadata_from_doi(doi):
                                             for author in authors_info 
                                             for name in author.get('names', []))
 
-            journal_info = next((journal for journal in metadata['jalc'].get('journal_title_name_list', []) if journal.get('lang') == 'ja'), None)
+            journal_info = next((journal for journal in data.get('journal_title_name_list', []) if journal.get('lang') == 'ja'), None)
             result['ジャーナル'] = journal_info['journal_title_name'] if journal_info else 'Not found'
 
             # JALCの情報から年、巻、号、ページを取得
-            result['年'] = metadata['jalc'].get('publication_date', {}).get('publication_year', 'Not found')
-            result['巻'] = metadata['jalc'].get('volume', 'Not found')
-            result['号'] = metadata['jalc'].get('issue', 'Not found')
-            result['開始ページ'] = metadata['jalc'].get('first_page', 'Not found')
-            result['終了ページ'] = metadata['jalc'].get('last_page', 'Not found')
+            result['年'] = data.get('publication_date', {}).get('publication_year', 'Not found')
+            result['巻'] = data.get('volume', 'Not found')
+            result['号'] = data.get('issue', 'Not found')
+            result['開始ページ'] = data.get('first_page', 'Not found')
+            result['終了ページ'] = data.get('last_page', 'Not found')
 
-        except KeyError as e:
-            st.warning(f"KeyError in JALC data: {e}")
-
-    # JALCから情報が得られなかった場合、Crossrefから情報を取得
-    if not result and metadata['crossref']:
-        try:
-            result['タイトル'] = next((title for title in metadata['crossref'].get('title', ['Not found']) if isinstance(title, str)), 'Not found')
-            result['著者'] = ', '.join(f"{author['family']} {author['given']}" for author in metadata['crossref'].get('author', []))
-            result['ジャーナル'] = metadata['crossref'].get('container-title', ['Not found'])[0]
-            result['年'] = metadata['crossref'].get('published-print', {}).get('date-parts', [[None]])[0][0] or 'Not found'
-            result['巻'] = metadata['crossref'].get('volume', 'Not found')
-            result['号'] = metadata['crossref'].get('issue', 'Not found')
-            result['開始ページ'] = metadata['crossref'].get('page', 'Not found').split('-')[0] if 'page' in metadata['crossref'] else 'Not found'
-            result['終了ページ'] = metadata['crossref'].get('page', 'Not found').split('-')[-1] if 'page' in metadata['crossref'] else 'Not found'
-
-        except KeyError as e:
-            st.warning(f"KeyError in Crossref data: {e}")
+    except requests.RequestException as e:
+        st.warning(f"JALC API error: {e}")
 
     # メタデータが見つからなかった場合のメッセージ
     if not result:
         return {'メッセージ': 'メタデータが見つかりませんでした。'}
 
     return result
-
 
 # Google DriveにSQLiteデータベースをアップロード
 def upload_db_to_google_drive(DB_FILE,drive):
@@ -321,13 +308,16 @@ def store_metadata_in_db_ai(DB_FILE, metadata, file_path, uploaded_file, drive):
     keywords_all = st.session_state["keywords_all"]
 
     try:
+        if not metadata or 'doi' not in metadata:
+            st.warning("メタデータが取得できていません。リトライしてください。")
+            return  # 早期リターン
+
         # DOIがすでに存在するか確認
         existing_record = session.query(Metadata).filter_by(doi=metadata['doi']).first()
-
         if existing_record:
             st.warning("This DOI is already in the database.")
             return
-
+        
         # PDFファイル名をメタデータのタイトルに基づいて変更
         title = metadata.get("タイトル", "unnamed_document")  # タイトルがない場合のデフォルト値
         sanitized_title = sanitize_filename(title)
@@ -676,6 +666,8 @@ def handle_pdf_upload(uploaded_file, auto_doi=False, manual_doi=None):
                 st.warning(f"表紙ページからのDOI取得に失敗しました．ファイル名からDOIを検索します．")
                 search_term = os.path.splitext(uploaded_file.name)[0]
                 doi = search_doi_from_filename(search_term)
+                if doi:
+                    st.success(f"取得したDOI: {doi}")  # DOIが見つかった場合、表示
                 
         elif manual_doi:
             doi = manual_doi
