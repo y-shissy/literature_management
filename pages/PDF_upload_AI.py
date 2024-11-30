@@ -82,16 +82,6 @@ def main():
         if doi_input:
             metadata = display_metadata(doi_input)
 
-            # メタデータが取得できたら表示
-            if metadata:
-                st.write("### 取得したメタデータ:")
-                st.write(f"**タイトル:** {metadata['タイトル']}")
-                st.write(f"**著者:** {metadata['著者']}")
-                st.write(f"**ジャーナル:** {metadata['ジャーナル']}")
-                st.write(f"**年:** {metadata['年']}")
-            else:
-                st.error("メタデータを取得できませんでした。正しいDOIを入力してください。")
-
             uploaded_file = st.file_uploader("PDFをアップロード", type=["pdf"])
             if uploaded_file:
                 # PDFを処理してメタデータを取得
