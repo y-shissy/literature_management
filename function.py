@@ -119,67 +119,78 @@ def get_metadata_from_doi(doi):
         try:
             data = response.json()
             metadata = data['message']
-            # Crossrefからの著者取得
-            authors = ', '.join(author['family'] + ' ' + author['given'] for author in metadata.get('author', []))
-
-            # JALC REST APIを利用
-            jalc_url = f"https://api.japanlinkcenter.org/dois/{doi}"
-            try:
-                response = requests.get(jalc_url, timeout=10, verify=False)
-                response.raise_for_status()
-            except requests.RequestException as e:
-                st.warning(f"JALC API error: {e}")
-                return None
-
-            if response.status_code == 200:
-                data = response.json()['data']
-
-                # タイトルの取得 (日本語優先、なければ英語)
-                title_info = next((title for title in data['title_list'] if title['lang'] == 'ja'), 
-                                  data['title_list'][0])
-                title = title_info.get('title', 'Not found')
-
-                # 著者名の取得 (日本語優先)
-                authors_info = data.get('creator_list', [])
-                japanese_authors = ', '.join(f"{name['last_name']} {name['first_name']}" 
-                                              for author in authors_info 
-                                              for name in author.get('names', []) 
-                                              if name.get('lang') == 'ja')
-
-                # Crossrefの著者とJALCの日本語著者を統合
-                if japanese_authors:
-                    authors = japanese_authors  # 日本語著者があれば日本語著者を使用
-
-                # ジャーナル名の取得 (日本語優先、なければ英語)
-                journal_info = next((journal for journal in data['journal_title_name_list'] if journal['lang'] == 'ja'), 
-                                    data['journal_title_name_list'][0])
-                journal = journal_info.get('journal_title_name', 'Not found')
-
-                # 発行年の取得
-                year = data.get('publication_date', {}).get('publication_year', None)
-
-                # ボリューム、ページの取得
-                volume = data.get('volume', 'Not found')
-                issue = data.get('issue', 'Not found')
-                first_page = data.get('first_page', 'Not found')
-                last_page = data.get('last_page', 'Not found')
-
-                return {
-                    'doi': doi,
-                    'タイトル': title,
-                    '著者': authors,
-                    'ジャーナル': journal,
-                    '巻': volume,
-                    '号': issue,
-                    '開始ページ': first_page,
-                    '終了ページ': last_page,
-                    '年': year
-                }
-
+            return {
+                'doi': doi,
+                'タイトル': metadata.get('title', ['Not found'])[0],
+                '著者': ', '.join(author['family'] + ' ' + author['given'] for author in metadata.get('author', [])),
+                'ジャーナル': metadata.get('container-title', ['Not found'])[0],
+                '巻': metadata.get('volume', 'Not found'),
+                '号': metadata.get('issue', 'Not found'),
+                '開始ページ': metadata.get('page', 'Not found').split('-')[0] if 'page' in metadata else 'Not found',
+                '終了ページ': metadata.get('page', 'Not found').split('-')[-1] if 'page' in metadata else 'Not found',
+                '年': metadata.get('published-print', {}).get('date-parts', [[None]])[0][0] if 'published-print' in metadata else 'Not found'
+            }
         except (KeyError, ValueError, IndexError) as e:
             st.warning(f"Error parsing Crossref response: {e}")
+
+    # JALC REST APIを利用 (Crossrefから取得できなかった場合に行う)
+    jalc_url = f"https://api.japanlinkcenter.org/dois/{doi}"
+    try:
+        response = requests.get(jalc_url, timeout=10, verify=False)
+        response.raise_for_status()
+    except requests.RequestException as e:
+        st.warning(f"JALC API error: {e}")
+        return None
+
+    if response.status_code == 200:
+        try:
+            data = response.json()['data']
+
+            # タイトルの取得 (日本語優先、なければ英語)
+            title_info = next((title for title in data['title_list'] if title['lang'] == 'ja'), 
+                              data['title_list'][0])
+            title = title_info.get('title', 'Not found')
+
+            # 著者名の取得 (日本語優先、なければ英語)
+            authors_info = data.get('creator_list', [])
+            japanese_authors = ', '.join(f"{name['last_name']} {name['first_name']}" 
+                                          for author in authors_info 
+                                          for name in author.get('names', []) 
+                                          if name.get('lang') == 'ja')
+            if not japanese_authors:  # 日本語の著者がいなければ、英語の著者を取得
+                japanese_authors = ', '.join(f"{name['last_name']} {name['first_name']}" 
+                                              for author in authors_info 
+                                              for name in author.get('names', []))
+
+            # ジャーナル名の取得 (日本語優先、なければ英語)
+            journal_info = next((journal for journal in data['journal_title_name_list'] if journal['lang'] == 'ja'), 
+                                data['journal_title_name_list'][0])
+            journal = journal_info.get('journal_title_name', 'Not found')
+
+            # 発行年の取得
+            year = data.get('publication_date', {}).get('publication_year', 'Not found')
+
+            # ボリューム、ページの取得
+            volume = data.get('volume', 'Not found')
+            issue = data.get('issue', 'Not found')
+            first_page = data.get('first_page', 'Not found')
+            last_page = data.get('last_page', 'Not found')
+
+            return {
+                'doi': doi,
+                'タイトル': title,
+                '著者': japanese_authors,
+                'ジャーナル': journal,
+                '巻': volume,
+                '号': issue,
+                '開始ページ': first_page,
+                '終了ページ': last_page,
+                '年': year
+            }
+        except (KeyError, ValueError, IndexError) as e:
+            st.warning(f"Error parsing JALC response: {e}")
     else:
-        st.warning(f"Crossref API returned status code: {response.status_code if response else 'No response'}")
+        st.warning(f"JALC API returned status code: {response.status_code}")
 
     return None
 
