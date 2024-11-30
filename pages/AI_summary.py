@@ -51,45 +51,30 @@ def main():
     edited_df = st.session_state["df"].copy()
     default_rows = edited_df[edited_df['要約'].isna() | (edited_df['要約'] == '')]['id']
 
-    # データ選択（マルチセレクト）
+    # 文献選択（タイトルを表示するようフォーマット）
     selected_rows = st.multiselect(
-        "要約を行うデータを選択", 
-        options=edited_df['id'], 
+        "要約を行う文献を選択してください",
+        options=edited_df['id'],
         default=default_rows,
         format_func=lambda x: edited_df[edited_df['id'] == x]['タイトル'].iloc[0]
     )
 
-    # 選択した文献の情報を動的に表示
+    # 選択された文献の詳細情報を折りたたみ表示
     if selected_rows:
-        st.markdown("### 選択された文献の詳細情報")
-        for row_id in selected_rows:
-            doc_info = edited_df[edited_df['id'] == row_id]
-            st.markdown(f"#### 文献 ID: {row_id}")
-            st.write(f"**タイトル**: {doc_info['タイトル'].iloc[0]}")
-            st.write(f"**著者**: {doc_info['著者'].iloc[0]}")
-            st.write(f"**ジャーナル**: {doc_info['ジャーナル'].iloc[0]}")
-            st.write(f"**巻**: {doc_info['巻'].iloc[0]}")
-            st.write(f"**号**: {doc_info['号'].iloc[0]}")
-            st.write(f"**年**: {doc_info['年'].iloc[0]}")
-            st.write(f"**DOI URL**: {doc_info['doi_url'].iloc[0]}")
+        with st.expander("選択された文献の詳細を表示"):
+            for row_id in selected_rows:
+                doc_info = edited_df[edited_df['id'] == row_id]
+                st.markdown(f"#### 文献 ID: {row_id}")
+                st.write(f"**タイトル**: {doc_info['タイトル'].iloc[0]}")
+                st.write(f"**著者**: {doc_info['著者'].iloc[0]}")
+                st.write(f"**ジャーナル**: {doc_info['ジャーナル'].iloc[0]}")
+                st.write(f"**巻**: {doc_info['巻'].iloc[0]}")
+                st.write(f"**号**: {doc_info['号'].iloc[0]}")
+                st.write(f"**年**: {doc_info['年'].iloc[0]}")
+                st.write(f"**DOI URL**: {doc_info['doi_url'].iloc[0]}")
 
-    # 表示画面用の column_config 設定
-    column_config = {
-        'doi_url': st.column_config.LinkColumn('Web', display_text='URL'),
-        'Read': st.column_config.CheckboxColumn('Read'),
-        'キーワード': st.column_config.ListColumn("キーワード", help="キーワード", width="medium")
-    }
-    
-    # 特定カラムを表示上除外してデータを表示
-    st.dataframe(
-        edited_df.drop(columns=['開始ページ', '終了ページ', 'ファイルリンク']),
-        column_config=column_config, 
-        hide_index=True, 
-        use_container_width=True
-    )
-
-    # 要約処理
-    if st.button("要約"):
+    # 「要約」ボタンの表示
+    if st.button("要約", key="summarize_button"):
         progress_bar = st.progress(0)
 
         for i, row_id in enumerate(selected_rows):
