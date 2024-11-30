@@ -104,14 +104,12 @@ def process_pdf(pdf_path):
     first_doi = extract_doi(combined_text)
     return first_doi,first_text
 
-
-
 # DOIから情報を抽出
 def get_metadata_from_doi(doi):
     # Crossref APIを利用
     crossref_url = f"https://api.crossref.org/works/{doi}"
     try:
-        response = requests.get(crossref_url, timeout=10,verify=False)  # タイムアウトを設定
+        response = requests.get(crossref_url, timeout=10, verify=False)  # タイムアウトを設定
         response.raise_for_status()  # ステータスコードが200以外の場合に例外を投げる
     except requests.RequestException as e:
         st.warning(f"Crossref API error: {e}")
@@ -121,79 +119,69 @@ def get_metadata_from_doi(doi):
         try:
             data = response.json()
             metadata = data['message']
-            return {
-                'doi': doi,
-                'タイトル': metadata.get('title', ['Not found'])[0],
-                '著者': ', '.join(author['family'] + ' ' + author['given'] for author in metadata.get('author', [])),
-                'ジャーナル': metadata.get('container-title', ['Not found'])[0],
-                '巻': metadata.get('volume', 'Not found'),
-                '号': metadata.get('issue', 'Not found'),
-                '開始ページ': metadata.get('page', 'Not found').split('-')[0],
-                '終了ページ': metadata.get('page', 'Not found').split('-')[-1],
-                '年': metadata.get('published-print', {}).get('date-parts', [[None]])[0][0]
-            }
+            # Crossrefからの著者取得
+            authors = ', '.join(author['family'] + ' ' + author['given'] for author in metadata.get('author', []))
+
+            # JALC REST APIを利用
+            jalc_url = f"https://api.japanlinkcenter.org/dois/{doi}"
+            try:
+                response = requests.get(jalc_url, timeout=10, verify=False)
+                response.raise_for_status()
+            except requests.RequestException as e:
+                st.warning(f"JALC API error: {e}")
+                return None
+
+            if response.status_code == 200:
+                data = response.json()['data']
+
+                # タイトルの取得 (日本語優先、なければ英語)
+                title_info = next((title for title in data['title_list'] if title['lang'] == 'ja'), 
+                                  data['title_list'][0])
+                title = title_info.get('title', 'Not found')
+
+                # 著者名の取得 (日本語優先)
+                authors_info = data.get('creator_list', [])
+                japanese_authors = ', '.join(f"{name['last_name']} {name['first_name']}" 
+                                              for author in authors_info 
+                                              for name in author.get('names', []) 
+                                              if name.get('lang') == 'ja')
+
+                # Crossrefの著者とJALCの日本語著者を統合
+                if japanese_authors:
+                    authors = japanese_authors  # 日本語著者があれば日本語著者を使用
+
+                # ジャーナル名の取得 (日本語優先、なければ英語)
+                journal_info = next((journal for journal in data['journal_title_name_list'] if journal['lang'] == 'ja'), 
+                                    data['journal_title_name_list'][0])
+                journal = journal_info.get('journal_title_name', 'Not found')
+
+                # 発行年の取得
+                year = data.get('publication_date', {}).get('publication_year', None)
+
+                # ボリューム、ページの取得
+                volume = data.get('volume', 'Not found')
+                issue = data.get('issue', 'Not found')
+                first_page = data.get('first_page', 'Not found')
+                last_page = data.get('last_page', 'Not found')
+
+                return {
+                    'doi': doi,
+                    'タイトル': title,
+                    '著者': authors,
+                    'ジャーナル': journal,
+                    '巻': volume,
+                    '号': issue,
+                    '開始ページ': first_page,
+                    '終了ページ': last_page,
+                    '年': year
+                }
+
         except (KeyError, ValueError, IndexError) as e:
             st.warning(f"Error parsing Crossref response: {e}")
     else:
         st.warning(f"Crossref API returned status code: {response.status_code if response else 'No response'}")
-    
-    # JALC REST APIを利用
-    jalc_url = f"https://api.japanlinkcenter.org/dois/{doi}"
-    try:
-        response = requests.get(jalc_url, timeout=10,verify=False)
-        response.raise_for_status()
-    except requests.RequestException as e:
-        st.warning(f"JALC API error: {e}")
-        return None
-
-    if response.status_code == 200:
-        try:
-            data = response.json()['data']
-            
-            # タイトルの取得 (日本語優先、なければ英語)
-            title_info = next((title for title in data['title_list'] if title['lang'] == 'ja'), 
-                              data['title_list'][0])
-            title = title_info.get('title', 'Not found')
-
-            # 著者名の取得 (日本語優先)
-            authors_info = data.get('creator_list', [])
-            authors = ', '.join(f"{name['last_name']} {name['first_name']}" 
-                                for author in authors_info 
-                                for name in author.get('names', []) 
-                                if name.get('lang') == 'ja')
-
-            # ジャーナル名の取得 (日本語優先、なければ英語)
-            journal_info = next((journal for journal in data['journal_title_name_list'] if journal['lang'] == 'ja'), 
-                                data['journal_title_name_list'][0])
-            journal = journal_info.get('journal_title_name', 'Not found')
-
-            # 発行年の取得
-            year = data.get('publication_date', {}).get('publication_year', None)
-
-            # ボリューム、ページの取得
-            volume = data.get('volume', 'Not found')
-            issue = data.get('issue', 'Not found')
-            first_page = data.get('first_page', 'Not found')
-            last_page = data.get('last_page', 'Not found')
-
-            return {
-                'doi': doi,
-                'タイトル': title,
-                '著者': authors,
-                'ジャーナル': journal,
-                '巻': volume,
-                '号': issue,
-                '開始ページ': first_page,
-                '終了ページ': last_page,
-                '年': year
-            }
-        except (KeyError, ValueError, IndexError) as e:
-            st.warning(f"Error parsing JALC response: {e}")
-    else:
-        st.warning(f"JALC API returned status code: {response.status_code}")
 
     return None
-
 
 # Google DriveにSQLiteデータベースをアップロード
 def upload_db_to_google_drive(DB_FILE,drive):
