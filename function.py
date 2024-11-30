@@ -20,6 +20,8 @@ from sqlalchemy.orm import sessionmaker, declarative_base
 from database import get_session, Metadata
 
 from openai import OpenAI
+from openai import OpenAIError
+
 from llama_index.core import download_loader, VectorStoreIndex, Settings, SimpleDirectoryReader,Document
 import tiktoken
 import urllib.parse
@@ -534,51 +536,54 @@ def translate_and_summarize(text):
     # テキストの前処理
     if not isinstance(text, str):
         text = str(text)  # テキストを強制的に文字列に変換
-    
-    # 特殊文字・制御文字の除去
+
     text = re.sub(r'[\r\n\t]+', ' ', text)  # 改行・タブをスペースに置換
-    text = re.sub(r'[^\x20-\x7E\u3000-\u9FFF]+', '', text)  # ASCII範囲外と日本語以外を除去
+    text = re.sub(r'[^\x20-\x7E\u3000-\u9FFF]+', '', text)  # 特殊文字を除去
 
     def split_text(text, max_tokens):
-        """
-        テキストを指定されたトークン数以内に分割する。
-        """
+        """テキストを指定されたトークン数以内に分割する。"""
         tokens = encoding.encode(text)
-        chunks = [
+        return [
             encoding.decode(tokens[i:i + max_tokens])
             for i in range(0, len(tokens), max_tokens)
         ]
-        return chunks
 
-    # テキスト分割（長すぎる場合）
-    try:
-        max_text_tokens = token_limit - 1000  # プロンプトや応答分の余裕を確保
-        if len(encoding.encode(text)) > max_text_tokens:
-            text_chunks = split_text(text, max_text_tokens)
-        else:
-            text_chunks = [text]
-    except Exception as e:
-        st.error(f"トークン分割エラー: {e}")
-        return "トークン分割に失敗しました。", [], "エラー"
+    # テキスト分割処理
+    max_text_tokens = token_limit - 1000  # プロンプトや応答分の余裕を確保
+    if len(encoding.encode(text)) > max_text_tokens:
+        text_chunks = split_text(text, max_text_tokens)
+        multi_chunk = True
+    else:
+        text_chunks = [text]
+        multi_chunk = False
 
     # 要約処理
-    summaries = []
     try:
+        summaries = []
         for chunk in text_chunks:
-            prompt = f"次の論文のテキスト内容を日本語で簡潔に要約してください:\n\n{chunk}"
+            prompt = f"次の文章を日本語で簡潔に要約してください:\n\n{chunk}"
             response = client.chat.completions.create(
                 model=model_name,
-                messages=[
-                    {"role": "user", "content": prompt}
-                ],
+                messages=[{"role": "user", "content": prompt}]
             )
             summaries.append(response.choices[0].message.content.strip())
-        summary = " ".join(summaries)
+
+        # 分割されていた場合、段階要約を行う
+        if multi_chunk:
+            final_prompt = "以下の複数の要約をもとに、全体を通した簡潔な要約を作成してください:\n\n" + " ".join(summaries)
+            final_response = client.chat.completions.create(
+                model=model_name,
+                messages=[{"role": "user", "content": final_prompt}]
+            )
+            summary = final_response.choices[0].message.content.strip()
+        else:
+            summary = summaries[0]
+
     except OpenAIError as e:
         st.error(f"要約エラー: {e}")
         summary = "要約に失敗しました。"
 
-    # キーワード抽出（要約から）
+    # キーワード抽出
     try:
         keyword_prompt = (
             f"次の要約に関連するキーワードを、以下のキーワードリストを参考にしてカンマ区切りで出力してください:\n"
@@ -588,9 +593,7 @@ def translate_and_summarize(text):
         )
         keyword_response = client.chat.completions.create(
             model=model_name,
-            messages=[
-                {"role": "user", "content": keyword_prompt}
-            ],
+            messages=[{"role": "user", "content": keyword_prompt}]
         )
         keyword_res = [kw.strip() for kw in keyword_response.choices[0].message.content.strip().split("、")]
     except OpenAIError as e:
@@ -606,9 +609,7 @@ def translate_and_summarize(text):
         )
         category_response = client.chat.completions.create(
             model=model_name,
-            messages=[
-                {"role": "user", "content": category_prompt}
-            ],
+            messages=[{"role": "user", "content": category_prompt}]
         )
         category_res = category_response.choices[0].message.content.strip()
     except OpenAIError as e:
