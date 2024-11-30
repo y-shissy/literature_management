@@ -51,18 +51,29 @@ def initialize_app():
             with tempfile.NamedTemporaryFile(delete=False, suffix=".txt") as temp_creds_file:
                 temp_creds_file.write(uploaded_creds_file.read())
                 temp_creds_path = temp_creds_file.name
+
             gauth = GoogleAuth()
             gauth.LoadCredentialsFile(temp_creds_path)
+
             if gauth.access_token_expired:
-                gauth.Refresh()
+                if hasattr(gauth, 'refresh_token'):
+                    gauth.Refresh()  # リフレッシュトークンが存在する場合のみリフレッシュ
+                else:
+                    st.warning("リフレッシュトークンが存在しません。再認証が必要です。")
+                    st.stop()
             else:
-                gauth.Authorize()
+                gauth.Authorize()  # 初回認証またはトークンが有効な場合の処理
+
             drive = GoogleDrive(gauth)
+
+            # ここでリフレッシュトークンを保存することができます
+            gauth.SaveCredentialsFile("mycreds.txt")  # 新しいリフレッシュトークンを保存
+
             st.session_state["drive"] = drive
         else:
             st.warning("Google Drive認証ファイルをアップロードしてください。")
             st.stop()
-
+            
     # データベース確認と読み込み
     if not os.path.exists(DB_FILE):
         db_temp_path = download_db_from_drive(st.session_state["drive"], DB_FILE)

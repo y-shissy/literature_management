@@ -524,10 +524,10 @@ def translate_and_summarize(text):
 
     # OpenAI APIキーの設定とクライアント初期化
     openai_api_key = st.secrets["openai_api_key"]
-    client = OpenAI(api_key=openai_api_key)
+    client = OpenAI(api_key=openai_api_key)  # OpenAIオブジェクトの初期化
 
     # トークン制限設定
-    model_name = "gpt-4o-mini"
+    model_name = "gpt-4o-mini"  # 使用するモデルの名前
     token_limit = 4000  # モデルの最大トークン数
     encoding = tiktoken.encoding_for_model(model_name)
 
@@ -560,20 +560,20 @@ def translate_and_summarize(text):
     try:
         for chunk in text_chunks:
             prompt = f"次の文章を日本語で簡潔に要約してください:\n\n{chunk}"
-            response = client.chat_completions.create(
+            response = client.ChatCompletion.create(  # OpenAIのChatCompletionを使用
                 model=model_name,
                 messages=[{"role": "user", "content": prompt}]
             )
-            summaries.append(response.choices[0].message.content.strip())
+            summaries.append(response.choices[0].message['content'].strip())
 
         # 段階要約処理
         if multi_chunk:
             final_prompt = "以下の複数の要約をもとに、全体を通した簡潔な要約を作成してください:\n\n" + " ".join(summaries)
-            final_response = client.chat_completions.create(
+            final_response = client.ChatCompletion.create(  # OpenAIのChatCompletionを使用
                 model=model_name,
                 messages=[{"role": "user", "content": final_prompt}]
             )
-            summary = final_response.choices[0].message.content.strip()
+            summary = final_response.choices[0].message['content'].strip()
         else:
             summary = summaries[0]
 
@@ -588,11 +588,11 @@ def translate_and_summarize(text):
             f"要約: {summary}\n\n"
             f"キーワードリスト: {', '.join(keywords_all)}"
         )
-        keyword_response = client.chat_completions.create(
+        keyword_response = client.ChatCompletion.create(  # OpenAIのChatCompletionを使用
             model=model_name,
             messages=[{"role": "user", "content": keyword_prompt}]
         )
-        keyword_res = [kw.strip() for kw in keyword_response.choices[0].message.content.strip().split("、")]
+        keyword_res = [kw.strip() for kw in keyword_response.choices[0].message['content'].strip().split("、")]
     except Exception as e:
         st.error(f"キーワード抽出中にエラーが発生しました: {e}")
         keyword_res = []
@@ -604,11 +604,11 @@ def translate_and_summarize(text):
             f"要約: {summary}\n\n"
             f"カテゴリ: {', '.join(categories_all)}"
         )
-        category_response = client.chat_completions.create(
+        category_response = client.ChatCompletion.create(  # OpenAIのChatCompletionを使用
             model=model_name,
             messages=[{"role": "user", "content": category_prompt}]
         )
-        category_res = category_response.choices[0].message.content.strip()
+        category_res = category_response.choices[0].message['content'].strip()
     except Exception as e:
         st.error(f"カテゴリ選択中にエラーが発生しました: {e}")
         category_res = "カテゴリ選択に失敗しました。"
