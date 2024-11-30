@@ -43,11 +43,11 @@ keywords_categories_file= 'keywords_categories.csv'
 def initialize_app():
     if "initialized" in st.session_state:
         return
-
     # Google Drive 認証
     if "drive" not in st.session_state:
         uploaded_creds_file = st.file_uploader("認証情報ファイル (`mycreds.txt`) をアップロード", type=["txt"])
         if uploaded_creds_file:
+            # 一時ファイルを作成して認証情報を読み込む
             with tempfile.NamedTemporaryFile(delete=False, suffix=".txt") as temp_creds_file:
                 temp_creds_file.write(uploaded_creds_file.read())
                 temp_creds_path = temp_creds_file.name
@@ -55,25 +55,43 @@ def initialize_app():
             gauth = GoogleAuth()
             gauth.LoadCredentialsFile(temp_creds_path)
 
+            # トークンのチェック
             if gauth.access_token_expired:
                 if hasattr(gauth, 'refresh_token'):
-                    gauth.Refresh()  # リフレッシュトークンが存在する場合のみリフレッシュ
+                    gauth.Refresh()  # リフレッシュトークンが存在する場合にリフレッシュ
                 else:
                     st.warning("リフレッシュトークンが存在しません。再認証が必要です。")
                     st.stop()
             else:
                 gauth.Authorize()  # 初回認証またはトークンが有効な場合の処理
 
-            drive = GoogleDrive(gauth)
+            # 認証情報をセッションステートに保存
+            st.session_state["credentials"] = {
+                "access_token": gauth.access_token,
+                "refresh_token": gauth.refresh_token,
+                "client_id": gauth.client_id,
+                "client_secret": gauth.client_secret,
+                "expiration_timestamp": gauth.authorization_expires_at.strftime('%Y-%m-%d %H:%M:%S')
+            }
 
-            # ここでリフレッシュトークンを保存することができます
-            gauth.SaveCredentialsFile("mycreds.txt")  # 新しいリフレッシュトークンを保存
+            # Driveオブジェクトをセッションに保存
+            st.session_state["drive"] = GoogleDrive(gauth)
 
-            st.session_state["drive"] = drive
         else:
             st.warning("Google Drive認証ファイルをアップロードしてください。")
             st.stop()
-            
+    else:
+        # セッションにすでにDriveが存在する場合、認証情報を再利用
+        gauth = GoogleAuth()
+        gauth.credentials = {
+            "access_token": st.session_state["credentials"]["access_token"],
+            "refresh_token": st.session_state["credentials"]["refresh_token"],
+            "client_id": st.session_state["credentials"]["client_id"],
+            "client_secret": st.session_state["credentials"]["client_secret"]
+        }
+        gauth.Authorize()
+        st.session_state["drive"] = GoogleDrive(gauth)
+        
     # データベース確認と読み込み
     if not os.path.exists(DB_FILE):
         db_temp_path = download_db_from_drive(st.session_state["drive"], DB_FILE)
@@ -369,7 +387,7 @@ def main():
 
                 time.sleep(3)
                 st.experimental_rerun()
-                
+
         st.markdown('#### :open_file_folder:ファイル表示')
 
         file_view = st.checkbox("PDFファイルを表示する")
