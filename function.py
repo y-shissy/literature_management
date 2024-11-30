@@ -103,10 +103,12 @@ def process_pdf(pdf_path):
     combined_text = ' '.join([doc.text for doc in first_text]).replace('\n', ' ')  # 改行をスペースに置換
     first_doi = extract_doi(combined_text)
     return first_doi,first_text
-
 # DOIから情報を抽出
 def get_metadata_from_doi(doi):
     metadata = {}
+
+    # DOIを格納
+    metadata['doi'] = doi  # DOIを最初に格納
 
     # Crossref APIを利用
     crossref_url = f"https://api.crossref.org/works/{doi}"
