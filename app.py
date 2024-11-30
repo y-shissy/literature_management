@@ -253,6 +253,16 @@ def main():
     # 初期化
     initialize_app()
 
+    # メインコンテンツを表示
+    if 'refresh_data' in st.session_state and st.session_state['refresh_data']:
+        # データベースの再読み込み処理
+        conn = sqlite3.connect(DB_FILE)
+        df = pd.read_sql("SELECT * FROM metadata", conn)
+        st.session_state["df"] = df
+
+        # フラグをリセット
+        st.session_state['refresh_data'] = False
+
     # タブ別表示
     items=["データベース表示","文献追加","ナレッジ検索","設定"]
     tabs=st.tabs(items)

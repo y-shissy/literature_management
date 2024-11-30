@@ -56,8 +56,8 @@ def main():
                 if metadata and file_path:
                     # データベース格納関数を呼び出し
                     store_metadata_in_db_ai(DB_FILE, metadata, file_path, uploaded_file, drive)
-                    # ページを再実行
-                    st.experimental_rerun()
+                    # アップロード成功後、再読み込みフラグを立てる
+                    st.session_state['refresh_data'] = True
                 else:
                     st.warning(f"{uploaded_file.name} の処理に失敗しました。")
 
@@ -72,8 +72,8 @@ def main():
                 # データベース格納関数を呼び出し
                 store_metadata_in_db(DB_FILE, metadata, file_path, uploaded_file, drive)
 
-                # ページを再実行
-                st.experimental_rerun()
+                # アップロード成功後、再読み込みフラグを立てる
+                st.session_state['refresh_data'] = True
 
     elif option == 'DOI手動入力+要約':
         doi_input = st.text_input("DOIを入力してください")
@@ -86,8 +86,8 @@ def main():
                     # データベース格納関数を呼び出し
                     store_metadata_in_db_ai(DB_FILE, metadata, file_path, uploaded_file, drive)
 
-                    # ページを再実行
-                    st.experimental_rerun()
+                    # アップロード成功後、再読み込みフラグを立てる
+                    st.session_state['refresh_data'] = True
 
 
     elif option == '文献情報手動入力+要約':
@@ -132,8 +132,8 @@ def main():
                     # データベース格納関数を呼び出し
                     store_metadata_in_db_ai(DB_FILE, metadata, temp_file_path, uploaded_file, drive)
 
-                    # ページを再実行
-                    st.experimental_rerun()
-
+                    # アップロード成功後、再読み込みフラグを立てる
+                    st.session_state['refresh_data'] = True
+                    
 if __name__ == "__main__":
     main()
