@@ -128,8 +128,8 @@ def main():
 
         st.success("変更が保存されました")
         upload_db_to_google_drive(DB_FILE, drive)
-        # ページを再実行
-        st.experimental_rerun()
+        # アップロード成功後、再読み込みフラグを立てる
+        st.session_state['refresh_data'] = True
 def update_database(conn, edited_df):
     """データベース更新処理。"""
     edited_df.to_sql("temp_metadata", conn, if_exists="replace", index=False)
