@@ -411,14 +411,13 @@ def display_metadata(doi):
         st.warning("No data found for the provided DOI.")
         return None
 
-## ファイル名を使ってDOIを抽出する関数
+# ファイル名を使ってDOIを抽出する関数
 def search_doi_from_filename(filename):
-    # CiNiiとCrossRefからDOIを検索
     cinii_dois = search_doi_on_cinii(filename)
     crossref_dois = search_doi_on_crossref(filename)
 
-    # すべてのDOIを一つのリストにまとめる
-    all_dois = cinii_dois + crossref_dois
+    # 二つのリストを結合し、重複を排除
+    all_dois = set(cinii_dois + crossref_dois)
 
     # DOI候補が無い場合
     if not all_dois:
@@ -430,18 +429,22 @@ def search_doi_from_filename(filename):
     highest_similarity = 0.0
 
     for doi in all_dois:
-        # 類似度を計算
-        similarity = SequenceMatcher(None, filename, doi).ratio()
+        title = extract_title_from_doi(doi)  # DOIからタイトルを抽出する関数を追加
+        similarity = SequenceMatcher(None, filename, title).ratio()
+
+        print(f"Comparing '{filename}' with title '{title}' for DOI: {doi}, Similarity: {similarity}")
+
         if similarity > highest_similarity:
             highest_similarity = similarity
             best_match = doi
 
-        st.write(f"DOIs found: {all_dois}")
-        st.write(f"Best match: {best_match} with similarity {highest_similarity}")
+    if highest_similarity < 0.8:  # 類似度の閾値
+        print("適切なDOIが見つかりませんでした。")
+        return None
 
     return best_match
 
-## Ciniiからdoiを抽出する関数
+# Ciniiからdoiを抽出する関数
 def search_doi_on_cinii(filename):
     name, ext = os.path.splitext(filename)
     encoded_name = urllib.parse.quote(name)
@@ -454,12 +457,11 @@ def search_doi_on_cinii(filename):
             soup = BeautifulSoup(response.text, 'html.parser')
 
             dos = []
-            # DOIリンクを検索
             for link in soup.find_all('a', href=True):
                 if 'doi.org' in link['href']:
                     doi = link['href'].split("doi.org/")[-1]
                     dos.append(doi)
-            return dos  # 複数のDOIをリストで返す
+            return dos
         else:
             print(f"Failed to retrieve data from CiNii. Status code: {response.status_code}")
     except requests.exceptions.RequestException as e:
@@ -467,9 +469,7 @@ def search_doi_on_cinii(filename):
 
     return []
 
-
-
-## crossrefからdoiを抽出する関数
+# crossrefからdoiを抽出する関数
 def search_doi_on_crossref(filename):
     name, ext = os.path.splitext(filename)
     encoded_name = urllib.parse.quote(name)
@@ -486,13 +486,28 @@ def search_doi_on_crossref(filename):
                 for item in data["message"]["items"]:
                     if 'DOI' in item:
                         dos.append(item['DOI'])
-            return dos  # 複数のDOIをリストで返す
+            return dos
         else:
             print(f"Failed to retrieve data from CrossRef. Status code: {response.status_code}")
     except requests.exceptions.RequestException as e:
         print(f"An error occurred during the request: {str(e)}")
 
     return []
+
+# DOIからタイトルを抽出する関数
+def extract_title_from_doi(doi):
+    base_url = f"https://doi.org/{doi}"
+    try:
+        response = requests.get(base_url, verify=False)
+        if response.status_code == 200:
+            soup = BeautifulSoup(response.text, 'html.parser')
+            title = soup.title.string if soup.title else "No Title Found"
+            return title
+        else:
+            print(f"Failed to retrieve title for DOI {doi}. Status code: {response.status_code}")
+    except requests.exceptions.RequestException as e:
+        print(f"An error occurred during the request for DOI title: {str(e)}")
+    return ""
 
 
 # doiのリンク先を取得（リダイレクトをフォロー）
