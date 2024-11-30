@@ -20,8 +20,6 @@ from sqlalchemy.orm import sessionmaker, declarative_base
 from database import get_session, Metadata
 
 from openai import OpenAI
-from openai import OpenAIError
-
 from llama_index.core import download_loader, VectorStoreIndex, Settings, SimpleDirectoryReader,Document
 import tiktoken
 import urllib.parse
@@ -520,28 +518,28 @@ def get_abstract_from_url(url):
     
 
 def translate_and_summarize(text):
-    # カテゴリ，キーワード読み込み
+    # カテゴリとキーワードをセッションから取得
     categories_all = st.session_state["categories_all"]
     keywords_all = st.session_state["keywords_all"]
 
-    # OpenAIクライアントの初期化
+    # OpenAI APIキーの設定とクライアント初期化
     openai_api_key = st.secrets["openai_api_key"]
     client = OpenAI(api_key=openai_api_key)
 
     # トークン制限設定
-    model_name = "gpt-4o-mini"
-    token_limit = 4000  # モデルの最大トークン数
+    model_name = "gpt-4"
+    token_limit = 4000
     encoding = tiktoken.encoding_for_model(model_name)
 
     # テキストの前処理
     if not isinstance(text, str):
-        text = str(text)  # テキストを強制的に文字列に変換
+        text = str(text)
 
     text = re.sub(r'[\r\n\t]+', ' ', text)  # 改行・タブをスペースに置換
     text = re.sub(r'[^\x20-\x7E\u3000-\u9FFF]+', '', text)  # 特殊文字を除去
 
+    # テキスト分割関数
     def split_text(text, max_tokens):
-        """テキストを指定されたトークン数以内に分割する。"""
         tokens = encoding.encode(text)
         return [
             encoding.decode(tokens[i:i + max_tokens])
@@ -549,7 +547,7 @@ def translate_and_summarize(text):
         ]
 
     # テキスト分割処理
-    max_text_tokens = token_limit - 1000  # プロンプトや応答分の余裕を確保
+    max_text_tokens = token_limit - 1000
     if len(encoding.encode(text)) > max_text_tokens:
         text_chunks = split_text(text, max_text_tokens)
         multi_chunk = True
@@ -558,20 +556,20 @@ def translate_and_summarize(text):
         multi_chunk = False
 
     # 要約処理
+    summaries = []
     try:
-        summaries = []
         for chunk in text_chunks:
             prompt = f"次の文章を日本語で簡潔に要約してください:\n\n{chunk}"
-            response = client.chat.completions.create(
+            response = client.chat_completions.create(
                 model=model_name,
                 messages=[{"role": "user", "content": prompt}]
             )
             summaries.append(response.choices[0].message.content.strip())
 
-        # 分割されていた場合、段階要約を行う
+        # 段階要約処理
         if multi_chunk:
             final_prompt = "以下の複数の要約をもとに、全体を通した簡潔な要約を作成してください:\n\n" + " ".join(summaries)
-            final_response = client.chat.completions.create(
+            final_response = client.chat_completions.create(
                 model=model_name,
                 messages=[{"role": "user", "content": final_prompt}]
             )
@@ -579,8 +577,8 @@ def translate_and_summarize(text):
         else:
             summary = summaries[0]
 
-    except OpenAIError as e:
-        st.error(f"要約エラー: {e}")
+    except Exception as e:
+        st.error(f"要約中にエラーが発生しました: {e}")
         summary = "要約に失敗しました。"
 
     # キーワード抽出
@@ -588,16 +586,15 @@ def translate_and_summarize(text):
         keyword_prompt = (
             f"次の要約に関連するキーワードを、以下のキーワードリストを参考にしてカンマ区切りで出力してください:\n"
             f"要約: {summary}\n\n"
-            f"キーワードリスト: {', '.join(keywords_all)}\n\n"
-            "関連するキーワードをカンマで区切って出力してください:"
+            f"キーワードリスト: {', '.join(keywords_all)}"
         )
-        keyword_response = client.chat.completions.create(
+        keyword_response = client.chat_completions.create(
             model=model_name,
             messages=[{"role": "user", "content": keyword_prompt}]
         )
         keyword_res = [kw.strip() for kw in keyword_response.choices[0].message.content.strip().split("、")]
-    except OpenAIError as e:
-        st.error(f"キーワード抽出エラー: {e}")
+    except Exception as e:
+        st.error(f"キーワード抽出中にエラーが発生しました: {e}")
         keyword_res = []
 
     # カテゴリ選択
@@ -605,15 +602,15 @@ def translate_and_summarize(text):
         category_prompt = (
             f"以下のカテゴリリストから、この要約に最も関連する語句を一つ選んで出力してください:\n"
             f"要約: {summary}\n\n"
-            f"カテゴリ: {', '.join(categories_all)}\n\n"
+            f"カテゴリ: {', '.join(categories_all)}"
         )
-        category_response = client.chat.completions.create(
+        category_response = client.chat_completions.create(
             model=model_name,
             messages=[{"role": "user", "content": category_prompt}]
         )
         category_res = category_response.choices[0].message.content.strip()
-    except OpenAIError as e:
-        st.error(f"カテゴリ選択エラー: {e}")
+    except Exception as e:
+        st.error(f"カテゴリ選択中にエラーが発生しました: {e}")
         category_res = "カテゴリ選択に失敗しました。"
 
     return summary, keyword_res, category_res
