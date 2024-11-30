@@ -105,7 +105,6 @@ def process_pdf(pdf_path):
     return first_doi,first_text
 
 # DOIから情報を抽出
-# DOIから情報を抽出
 def get_metadata_from_doi(doi):
     metadata = {}
 
@@ -136,49 +135,58 @@ def get_metadata_from_doi(doi):
 
     # JALCからの情報を優先して取得
     if metadata['jalc']:
-        title_info = next((title for title in metadata['jalc']['title_list'] if title['lang'] == 'ja'), None)
-        if title_info:
-            result['タイトル'] = title_info['title']
-        else:
-            result['タイトル'] = next((title['title'] for title in metadata['jalc']['title_list']), 'Not found')
+        try:
+            title_info = next((title for title in metadata['jalc'].get('title_list', []) if title.get('lang') == 'ja'), None)
+            if title_info:
+                result['タイトル'] = title_info['title']
+            else:
+                result['タイトル'] = next((title['title'] for title in metadata['jalc'].get('title_list', [])), 'Not found')
 
-        authors_info = metadata['jalc'].get('creator_list', [])
-        result['著者'] = ', '.join(f"{name['last_name']} {name['first_name']}" 
-                                    for author in authors_info 
-                                    for name in author.get('names', [])
-                                    if name.get('lang') == 'ja')
-
-        if not result['著者']:  # 日本語の著者がいなければ英語を取得
+            authors_info = metadata['jalc'].get('creator_list', [])
             result['著者'] = ', '.join(f"{name['last_name']} {name['first_name']}" 
                                         for author in authors_info 
-                                        for name in author.get('names', []))
+                                        for name in author.get('names', []) 
+                                        if name.get('lang') == 'ja')
 
-        journal_info = next((journal for journal in metadata['jalc']['journal_title_name_list'] if journal['lang'] == 'ja'), None)
-        result['ジャーナル'] = journal_info['journal_title_name'] if journal_info else 'Not found'
+            if not result['著者']:  # 日本語の著者がいなければ英語を取得
+                result['著者'] = ', '.join(f"{name['last_name']} {name['first_name']}" 
+                                            for author in authors_info 
+                                            for name in author.get('names', []))
 
-        # JALCの情報から年、巻、号、ページを取得
-        result['年'] = metadata['jalc'].get('publication_date', {}).get('publication_year', 'Not found')
-        result['巻'] = metadata['jalc'].get('volume', 'Not found')
-        result['号'] = metadata['jalc'].get('issue', 'Not found')
-        result['開始ページ'] = metadata['jalc'].get('first_page', 'Not found')
-        result['終了ページ'] = metadata['jalc'].get('last_page', 'Not found')
+            journal_info = next((journal for journal in metadata['jalc'].get('journal_title_name_list', []) if journal.get('lang') == 'ja'), None)
+            result['ジャーナル'] = journal_info['journal_title_name'] if journal_info else 'Not found'
+
+            # JALCの情報から年、巻、号、ページを取得
+            result['年'] = metadata['jalc'].get('publication_date', {}).get('publication_year', 'Not found')
+            result['巻'] = metadata['jalc'].get('volume', 'Not found')
+            result['号'] = metadata['jalc'].get('issue', 'Not found')
+            result['開始ページ'] = metadata['jalc'].get('first_page', 'Not found')
+            result['終了ページ'] = metadata['jalc'].get('last_page', 'Not found')
+
+        except KeyError as e:
+            st.warning(f"KeyError in JALC data: {e}")
 
     # JALCから情報が得られなかった場合、Crossrefから情報を取得
-    elif metadata['crossref']:
-        result['タイトル'] = next((title for title in metadata['crossref'].get('title', ['Not found']) if isinstance(title, str)), 'Not found')
-        result['著者'] = ', '.join(f"{author['family']} {author['given']}" for author in metadata['crossref'].get('author', []))
-        result['ジャーナル'] = metadata['crossref'].get('container-title', ['Not found'])[0]
-        result['年'] = metadata['crossref'].get('published-print', {}).get('date-parts', [[None]])[0][0] or 'Not found'
-        result['巻'] = metadata['crossref'].get('volume', 'Not found')
-        result['号'] = metadata['crossref'].get('issue', 'Not found')
-        result['開始ページ'] = metadata['crossref'].get('page', 'Not found').split('-')[0] if 'page' in metadata['crossref'] else 'Not found'
-        result['終了ページ'] = metadata['crossref'].get('page', 'Not found').split('-')[-1] if 'page' in metadata['crossref'] else 'Not found'
+    if not result and metadata['crossref']:
+        try:
+            result['タイトル'] = next((title for title in metadata['crossref'].get('title', ['Not found']) if isinstance(title, str)), 'Not found')
+            result['著者'] = ', '.join(f"{author['family']} {author['given']}" for author in metadata['crossref'].get('author', []))
+            result['ジャーナル'] = metadata['crossref'].get('container-title', ['Not found'])[0]
+            result['年'] = metadata['crossref'].get('published-print', {}).get('date-parts', [[None]])[0][0] or 'Not found'
+            result['巻'] = metadata['crossref'].get('volume', 'Not found')
+            result['号'] = metadata['crossref'].get('issue', 'Not found')
+            result['開始ページ'] = metadata['crossref'].get('page', 'Not found').split('-')[0] if 'page' in metadata['crossref'] else 'Not found'
+            result['終了ページ'] = metadata['crossref'].get('page', 'Not found').split('-')[-1] if 'page' in metadata['crossref'] else 'Not found'
+
+        except KeyError as e:
+            st.warning(f"KeyError in Crossref data: {e}")
 
     # メタデータが見つからなかった場合のメッセージ
     if not result:
         return {'メッセージ': 'メタデータが見つかりませんでした。'}
 
     return result
+
 
 # Google DriveにSQLiteデータベースをアップロード
 def upload_db_to_google_drive(DB_FILE,drive):
