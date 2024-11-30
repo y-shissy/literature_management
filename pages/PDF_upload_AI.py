@@ -56,8 +56,12 @@ def main():
                 if metadata and file_path:
                     # データベース格納関数を呼び出し
                     store_metadata_in_db_ai(DB_FILE, metadata, file_path, uploaded_file, drive)
+                    # ページを再実行
+                    st.experimental_rerun()
                 else:
                     st.warning(f"{uploaded_file.name} の処理に失敗しました。")
+
+
 
     elif option == 'DOI自動判別':
         uploaded_file = st.file_uploader("PDFをアップロード", type=["pdf"])
@@ -67,6 +71,9 @@ def main():
             if metadata and file_path:
                 # データベース格納関数を呼び出し
                 store_metadata_in_db(DB_FILE, metadata, file_path, uploaded_file, drive)
+
+                # ページを再実行
+                st.experimental_rerun()
 
     elif option == 'DOI手動入力+要約':
         doi_input = st.text_input("DOIを入力してください")
@@ -78,6 +85,9 @@ def main():
                 if metadata and file_path:
                     # データベース格納関数を呼び出し
                     store_metadata_in_db_ai(DB_FILE, metadata, file_path, uploaded_file, drive)
+
+                    # ページを再実行
+                    st.experimental_rerun()
 
 
     elif option == '文献情報手動入力+要約':
@@ -121,5 +131,9 @@ def main():
 
                     # データベース格納関数を呼び出し
                     store_metadata_in_db_ai(DB_FILE, metadata, temp_file_path, uploaded_file, drive)
+
+                    # ページを再実行
+                    st.experimental_rerun()
+
 if __name__ == "__main__":
     main()
