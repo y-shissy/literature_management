@@ -29,7 +29,7 @@ from pdf2image import convert_from_path
 
 # 関数読込
 
-from function import store_metadata_in_db, handle_pdf_upload,store_metadata_in_db_ai,create_temp_file
+from function import store_metadata_in_db, handle_pdf_upload,store_metadata_in_db_ai,create_temp_file,display_metadata
 
 # ページ設定
 st.set_page_config(
@@ -77,7 +77,21 @@ def main():
 
     elif option == 'DOI手動入力+要約':
         doi_input = st.text_input("DOIを入力してください")
+
+        # DOIが入力されたらメタデータを取得
         if doi_input:
+            metadata = display_metadata(doi_input)
+
+            # メタデータが取得できたら表示
+            if metadata:
+                st.write("### 取得したメタデータ:")
+                st.write(f"**タイトル:** {metadata['タイトル']}")
+                st.write(f"**著者:** {metadata['著者']}")
+                st.write(f"**ジャーナル:** {metadata['ジャーナル']}")
+                st.write(f"**年:** {metadata['年']}")
+            else:
+                st.error("メタデータを取得できませんでした。正しいDOIを入力してください。")
+
             uploaded_file = st.file_uploader("PDFをアップロード", type=["pdf"])
             if uploaded_file:
                 # PDFを処理してメタデータを取得
@@ -134,6 +148,6 @@ def main():
 
                     # アップロード成功後、再読み込みフラグを立てる
                     st.session_state['refresh_data'] = True
-                    
+
 if __name__ == "__main__":
     main()

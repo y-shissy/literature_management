@@ -28,6 +28,7 @@ import pytesseract
 from pdf2image import convert_from_path
 import uuid
 import hashlib
+from difflib import SequenceMatcher
 
 # PDFからの１~２ページのテキスト抽出（llama_index使用）
 def extract_text_from_pdf_pages(pdf_path):
@@ -410,81 +411,85 @@ def display_metadata(doi):
         st.warning("No data found for the provided DOI.")
         return None
 
-## ファイル名を使ってdoiを抽出する関数
+## ファイル名を使ってDOIを抽出する関数
 def search_doi_from_filename(filename):
-    # まずCiNiiでDOIを検索
-    doi = search_doi_on_cinii(filename)
-    if doi:
-        return doi
-    else:
-    #cross refでdoi検索
-        doi = search_doi_on_crossref(filename)
-        if doi:
-            return doi
-    return None
+    # CiNiiとCrossRefからDOIを検索
+    cinii_dois = search_doi_on_cinii(filename)
+    crossref_dois = search_doi_on_crossref(filename)
+
+    # すべてのDOIを一つのリストにまとめる
+    all_dois = cinii_dois + crossref_dois
+
+    # DOI候補が無い場合
+    if not all_dois:
+        print("DOIが見つかりませんでした。")
+        return None
+
+    # 最も似ているDOIを検索
+    best_match = None
+    highest_similarity = 0.0
+
+    for doi in all_dois:
+        # 類似度を計算
+        similarity = SequenceMatcher(None, filename, doi).ratio()
+        if similarity > highest_similarity:
+            highest_similarity = similarity
+            best_match = doi
+
+    return best_match
 
 ## Ciniiからdoiを抽出する関数
 def search_doi_on_cinii(filename):
-    # ファイル名のクリーンアップ（例: 拡張子や不要な部分を除去）
-    name,ext=os.path.splitext(filename)
-    # URLエンコーディング
-    encoded_name=urllib.parse.quote(name)
+    name, ext = os.path.splitext(filename)
+    encoded_name = urllib.parse.quote(name)
 
-    # CiNiiの検索URLにクリーンアップされたファイル名を使用
     search_url = f"https://cir.nii.ac.jp/opensearch/all?title={encoded_name}"
 
     try:
-        # リクエストを送信してレスポンスを取得
-        response = requests.get(search_url,verify=False)
-
-        # レスポンスが成功したかを確認
+        response = requests.get(search_url, verify=False)
         if response.status_code == 200:
             soup = BeautifulSoup(response.text, 'html.parser')
 
+            dos = []
             # DOIリンクを検索
             for link in soup.find_all('a', href=True):
                 if 'doi.org' in link['href']:
-                    doi = link['href'].split("doi.org/")[-1]  # "doi.org/" 以降の部分を抽出
-                    return doi
+                    doi = link['href'].split("doi.org/")[-1]
+                    dos.append(doi)
+            return dos  # 複数のDOIをリストで返す
         else:
-            st.error(f"Failed to retrieve data from CiNii. Status code: {response.status_code}")
+            print(f"Failed to retrieve data from CiNii. Status code: {response.status_code}")
     except requests.exceptions.RequestException as e:
-        st.error(f"An error occurred during the request: {str(e)}")
+        print(f"An error occurred during the request: {str(e)}")
 
-    # DOIが見つからなかった場合はNoneを返す
-    return None
+    return []
 
 
-## Ciniiからdoiを抽出する関数
+
+## crossrefからdoiを抽出する関数
 def search_doi_on_crossref(filename):
-    # ファイル名のクリーンアップ（例: 拡張子や不要な部分を除去）
-    name,ext=os.path.splitext(filename)
-    # URLエンコーディング
-    encoded_name=urllib.parse.quote(name)
+    name, ext = os.path.splitext(filename)
+    encoded_name = urllib.parse.quote(name)
 
-    # CiNiiの検索URLにクリーンアップされたファイル名を使用
     search_url = f"https://api.crossref.org/works?query.title={encoded_name}"
 
     try:
-        # リクエストを送信してレスポンスを取得
-        response = requests.get(search_url,verify=False)
-
-        # レスポンスが成功したかを確認
+        response = requests.get(search_url, verify=False)
         if response.status_code == 200:
-            data=response.json()
+            data = response.json()
+            dos = []
 
-            # DOIリンクを検索
             if 'items' in data['message']:
                 for item in data["message"]["items"]:
                     if 'DOI' in item:
-                        return item['DOI']
+                        dos.append(item['DOI'])
+            return dos  # 複数のDOIをリストで返す
         else:
-            st.error(f"Failed to retrieve data from CiNii. Status code: {response.status_code}")
+            print(f"Failed to retrieve data from CrossRef. Status code: {response.status_code}")
     except requests.exceptions.RequestException as e:
-        st.error(f"An error occurred during the request: {str(e)}")
+        print(f"An error occurred during the request: {str(e)}")
 
-    # DOIが見つからなかった場合はNoneを返す
-    return None
+    return []
 
 
 # doiのリンク先を取得（リダイレクトをフォロー）
