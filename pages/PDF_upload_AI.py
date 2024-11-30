@@ -44,7 +44,7 @@ def main():
     st.markdown("### PDFアップロード・AI自動要約")
     DB_FILE = "literature_database.db"
 
-    option = st.radio("操作を選択してください", ('DOI自動判別+要約','DOI自動判別', 'DOI手動入力'))
+    option = st.radio("操作を選択してください", ('DOI自動判別+要約','DOI自動判別', 'DOI手動入力','文献情報手動入力'))
 
     if option == 'DOI自動判別+要約':
         uploaded_files = st.file_uploader("PDFをアップロード (複数選択可能)", type=["pdf"], accept_multiple_files=True)
