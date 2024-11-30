@@ -115,14 +115,28 @@ def get_metadata_from_doi(doi):
         st.warning(f"Crossref API error: {e}")
         response = None
 
+    metadata = {}
+
     if response and response.status_code == 200:
         try:
             data = response.json()
             metadata = data['message']
-            return {
+
+            # タイトルの取得 (日本語優先)
+            title_info = next((title for title in metadata.get('title', []) if isinstance(title, str) and title), 'Not found')
+            if isinstance(title_info, list) and title_info:
+                title = title_info[0]
+            else:
+                title = 'Not found'
+
+            # 著者名の取得
+            authors = ', '.join(author['family'] + ' ' + author['given'] for author in metadata.get('author', []))
+
+            # 取得したメタデータを設定
+            metadata_dict = {
                 'doi': doi,
-                'タイトル': metadata.get('title', ['Not found'])[0],
-                '著者': ', '.join(author['family'] + ' ' + author['given'] for author in metadata.get('author', [])),
+                'タイトル': title,
+                '著者': authors,
                 'ジャーナル': metadata.get('container-title', ['Not found'])[0],
                 '巻': metadata.get('volume', 'Not found'),
                 '号': metadata.get('issue', 'Not found'),
@@ -130,6 +144,8 @@ def get_metadata_from_doi(doi):
                 '終了ページ': metadata.get('page', 'Not found').split('-')[-1] if 'page' in metadata else 'Not found',
                 '年': metadata.get('published-print', {}).get('date-parts', [[None]])[0][0] if 'published-print' in metadata else 'Not found'
             }
+            return metadata_dict
+
         except (KeyError, ValueError, IndexError) as e:
             st.warning(f"Error parsing Crossref response: {e}")
 
@@ -148,15 +164,17 @@ def get_metadata_from_doi(doi):
 
             # タイトルの取得 (日本語優先、なければ英語)
             title_info = next((title for title in data['title_list'] if title['lang'] == 'ja'), 
-                              data['title_list'][0])
+                              next((title for title in data['title_list'] if title['lang'] == 'en'), 
+                                   {'title': 'Not found'}))
             title = title_info.get('title', 'Not found')
 
-            # 著者名の取得 (日本語優先、なければ英語)
+            # 著者名の取得 (日本語優先)
             authors_info = data.get('creator_list', [])
             japanese_authors = ', '.join(f"{name['last_name']} {name['first_name']}" 
                                           for author in authors_info 
                                           for name in author.get('names', []) 
                                           if name.get('lang') == 'ja')
+
             if not japanese_authors:  # 日本語の著者がいなければ、英語の著者を取得
                 japanese_authors = ', '.join(f"{name['last_name']} {name['first_name']}" 
                                               for author in authors_info 
@@ -164,7 +182,8 @@ def get_metadata_from_doi(doi):
 
             # ジャーナル名の取得 (日本語優先、なければ英語)
             journal_info = next((journal for journal in data['journal_title_name_list'] if journal['lang'] == 'ja'), 
-                                data['journal_title_name_list'][0])
+                                next((journal for journal in data['journal_title_name_list'] if journal['lang'] == 'en'), 
+                                     {'journal_title_name': 'Not found'}))
             journal = journal_info.get('journal_title_name', 'Not found')
 
             # 発行年の取得
