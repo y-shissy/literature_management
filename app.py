@@ -28,7 +28,7 @@ import urllib.parse
 import pytesseract
 from pdf2image import convert_from_path
 # 関数読込
-from function import download_file
+from function import download_file,upload_db_to_google_drive
 
 # ページ設定
 st.set_page_config(layout="wide")
@@ -364,9 +364,12 @@ def main():
                 df = pd.read_sql("SELECT * FROM metadata", conn)
                 st.session_state["df"] = df
                 st.success("変更が保存されました．間もなくリロードします．")
+                # Google Driveにデータベースをアップロード
+                upload_db_to_google_drive(DB_FILE, st.session_state['drive'])
+
                 time.sleep(3)
                 st.experimental_rerun()
-
+                
         st.markdown('#### :open_file_folder:ファイル表示')
 
         file_view = st.checkbox("PDFファイルを表示する")
