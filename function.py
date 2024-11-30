@@ -421,7 +421,7 @@ def search_doi_from_filename(filename):
 
     # DOI候補が無い場合
     if not all_dois:
-        print("DOIが見つかりませんでした。")
+        st.write("DOIが見つかりませんでした。")
         return None
 
     # 最も似ているDOIを検索
@@ -432,14 +432,14 @@ def search_doi_from_filename(filename):
         title = extract_title_from_doi(doi)  # DOIからタイトルを抽出する関数を追加
         similarity = SequenceMatcher(None, filename, title).ratio()
 
-        print(f"Comparing '{filename}' with title '{title}' for DOI: {doi}, Similarity: {similarity}")
+        st.write(f"Comparing '{filename}' with title '{title}' for DOI: {doi}, Similarity: {similarity}")
 
         if similarity > highest_similarity:
             highest_similarity = similarity
             best_match = doi
 
     if highest_similarity < 0.8:  # 類似度の閾値
-        print("適切なDOIが見つかりませんでした。")
+        st.write("適切なDOIが見つかりませんでした。")
         return None
 
     return best_match
@@ -463,9 +463,9 @@ def search_doi_on_cinii(filename):
                     dos.append(doi)
             return dos
         else:
-            print(f"Failed to retrieve data from CiNii. Status code: {response.status_code}")
+            st.write(f"Failed to retrieve data from CiNii. Status code: {response.status_code}")
     except requests.exceptions.RequestException as e:
-        print(f"An error occurred during the request: {str(e)}")
+        st.write(f"An error occurred during the request: {str(e)}")
 
     return []
 
@@ -488,9 +488,9 @@ def search_doi_on_crossref(filename):
                         dos.append(item['DOI'])
             return dos
         else:
-            print(f"Failed to retrieve data from CrossRef. Status code: {response.status_code}")
+            st.write(f"Failed to retrieve data from CrossRef. Status code: {response.status_code}")
     except requests.exceptions.RequestException as e:
-        print(f"An error occurred during the request: {str(e)}")
+        st.write(f"An error occurred during the request: {str(e)}")
 
     return []
 
@@ -504,9 +504,9 @@ def extract_title_from_doi(doi):
             title = soup.title.string if soup.title else "No Title Found"
             return title
         else:
-            print(f"Failed to retrieve title for DOI {doi}. Status code: {response.status_code}")
+            st.write(f"Failed to retrieve title for DOI {doi}. Status code: {response.status_code}")
     except requests.exceptions.RequestException as e:
-        print(f"An error occurred during the request for DOI title: {str(e)}")
+        st.write(f"An error occurred during the request for DOI title: {str(e)}")
     return ""
 
 
@@ -522,7 +522,7 @@ def get_final_url(doi_url):
         
         return final_url
     except requests.RequestException as e:
-        print(f"DOIリンクへのアクセスに失敗しました: {e}")
+        st.write(f"DOIリンクへのアクセスに失敗しました: {e}")
         return None
     
     
@@ -536,7 +536,7 @@ def get_abstract_from_url(url):
         full_text = soup.get_text(separator="\n", strip=True)
         return full_text
     except requests.RequestException as e:
-        print(f"URLへのアクセスに失敗しました: {e}")
+        st.write(f"URLへのアクセスに失敗しました: {e}")
         return None
     
 
