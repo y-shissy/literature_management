@@ -70,14 +70,13 @@ def main():
     )
 
 
-    # 文献選択（タイトルを表示するようフォーマット）
+    # 文献選択（IDとタイトルをフォーマットして表示）
     selected_rows = st.multiselect(
         "要約を行う文献を選択してください",
         options=edited_df['id'],
         default=default_rows,
-        format_func=lambda x: edited_df[edited_df['id'] == x]['タイトル'].iloc[0]
+        format_func=lambda x: f"{x} - {edited_df[edited_df['id'] == x]['タイトル'].iloc[0]}"
     )
-
     # 選択された文献の詳細情報を折りたたみ表示
     if selected_rows:
         with st.expander("選択された文献の詳細を表示"):
