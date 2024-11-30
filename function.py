@@ -436,6 +436,9 @@ def search_doi_from_filename(filename):
             highest_similarity = similarity
             best_match = doi
 
+        st.write(f"DOIs found: {all_dois}")
+        st.write(f"Best match: {best_match} with similarity {highest_similarity}")
+
     return best_match
 
 ## Ciniiからdoiを抽出する関数
@@ -657,9 +660,13 @@ def handle_pdf_upload(uploaded_file, auto_doi=False, manual_doi=None):
         doi = None
         if auto_doi:
             doi, _ = process_pdf(temp_file_path)
-            if not doi:
+            if doi:
+                st.success(f"取得したDOI: {doi}")  # DOIが見つかった場合、表示
+            else:
+                st.warning(f"表紙ページからのDOI取得に失敗しました．ファイル名からDOIを検索します．")
                 search_term = os.path.splitext(uploaded_file.name)[0]
                 doi = search_doi_from_filename(search_term)
+                
         elif manual_doi:
             doi = manual_doi
 
