@@ -437,7 +437,7 @@ def search_doi_from_filename(filename):
             highest_similarity = similarity
             best_match = doi
 
-    if highest_similarity < 0.8:  # 類似度の閾値
+    if highest_similarity < 0.4:  # 類似度の閾値
         st.write("適切なDOIが見つかりませんでした。")
         return None
 
