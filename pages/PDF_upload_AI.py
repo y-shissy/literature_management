@@ -29,7 +29,7 @@ from pdf2image import convert_from_path
 
 # 関数読込
 
-from function import store_metadata_in_db, handle_pdf_upload,store_metadata_in_db_ai
+from function import store_metadata_in_db, handle_pdf_upload,store_metadata_in_db_ai,create_temp_file
 
 # ページ設定
 st.set_page_config(
@@ -99,24 +99,27 @@ def main():
                 submit_button = st.form_submit_button(label='保存')
 
                 if submit_button:
-                    # PDFを処理してメタデータを取得
-                    metadata, file_path = handle_pdf_upload(uploaded_file, auto_doi=False, manual_doi=doi_input)
-                    if metadata and file_path:
-                        # 入力内容からメタデータを作成
-                        metadata.update({
-                            'doi': doi_input,
-                            'タイトル': title,
-                            '著者': authors,
-                            'ジャーナル': journal,
-                            '巻': volume,
-                            '号': number,
-                            '開始ページ': start_page,
-                            '終了ページ': end_page,
-                            '年': year,
-                        })
-                        # データベース格納関数を呼び出し
-                        store_metadata_in_db(DB_FILE, metadata, file_path, uploaded_file, drive)
+                    # PDFファイルを一時的に保存し、ファイルパスを取得
+                    temp_file_path, _ = create_temp_file(uploaded_file)  # create_temp_fileは一時ファイルを作成する関数
 
+                    if not temp_file_path:
+                        st.error("一時ファイルの作成に失敗しました。")
+                        return
 
+                    # 入力内容からメタデータを作成
+                    metadata = {
+                        'doi': doi_input,
+                        'タイトル': title,
+                        '著者': authors,
+                        'ジャーナル': journal,
+                        '巻': volume,
+                        '号': number,
+                        '開始ページ': start_page,
+                        '終了ページ': end_page,
+                        '年': year,
+                    }
+
+                    # データベース格納関数を呼び出し
+                    store_metadata_in_db(DB_FILE, metadata, temp_file_path, uploaded_file, drive)
 if __name__ == "__main__":
     main()
