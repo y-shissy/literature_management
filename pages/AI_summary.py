@@ -59,6 +59,8 @@ def main():
     }
     
 
+    
+    st.markdown("##### 文献リスト")
     # 特定カラムを表示上除外してデータを表示
     st.dataframe(
         edited_df.drop(columns=['開始ページ', '終了ページ', 'ファイルリンク']),
